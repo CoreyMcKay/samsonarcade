@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whack-a-Mouse — Samson Arcade</title>
+  <meta name="description" content="Whack-a-Mouse: bonk the pixel mice before they duck. Chain combos, hunt the golden mouse." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem; overflow-x: hidden;
+    }
+    h1, .hud, .combo, .pop, .overlay h2, .bigbtn { font-family: 'Bungee', cursive; }
+    .hidden { display: none !important; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 0.8rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--red); }
+    .hud {
+      display: flex; gap: 1.2rem; align-items: center; margin-bottom: 0.6rem;
+      font-size: 0.9rem; background: var(--panel); border: 3px solid var(--line);
+      border-radius: 14px; padding: 0.55rem 1.2rem; flex-wrap: wrap; justify-content: center;
+    }
+    .hud b { color: var(--gold); }
+    .combo { font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 999px; background: var(--line); color: var(--ink-soft); }
+    .combo.hot { background: var(--gold); color: #140f00; }
+    .timebar { width: 100%; max-width: 560px; height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; margin-bottom: 0.9rem; }
+    #timefill { height: 100%; width: 100%; background: var(--gold); border-radius: 999px; }
+    #stage { position: relative; width: 100%; max-width: 560px; }
+    #stage.shake { animation: shake 0.22s; }
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-5px, 3px); }
+      50% { transform: translate(4px, -3px); } 75% { transform: translate(-3px, -2px); }
+    }
+    #grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem;
+      background: var(--panel); border: 4px solid var(--line); border-radius: 18px;
+      padding: 1rem; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; cursor: pointer;
+    }
+    .hole { position: relative; aspect-ratio: 1; }
+    .hole .back {
+      position: absolute; left: 50%; bottom: 20%; transform: translateX(-50%);
+      width: 62%; height: 24%; background: #08070f; border-radius: 50%;
+    }
+    .hole .mouse {
+      position: absolute; left: 50%; bottom: 26%; width: 60%;
+      transform: translate(-50%, 110%); transition: transform 0.11s ease-out;
+    }
+    .hole.up .mouse { transform: translate(-50%, 0); }
+    .hole .mouse img {
+      width: 100%; display: block; mix-blend-mode: screen;
+      image-rendering: pixelated; pointer-events: none;
+    }
+    .hole.golden .mouse img {
+      filter: sepia(1) saturate(5) hue-rotate(-10deg) brightness(1.25)
+              drop-shadow(0 0 10px rgba(255, 210, 63, 0.9));
+    }
+    .hole.bonked .mouse { transform: translate(-50%, 0) scaleY(0.55) rotate(10deg); transition: transform 0.08s; }
+    .hole .front {
+      position: absolute; left: 50%; bottom: 10%; transform: translateX(-50%);
+      width: 80%; height: 24%; z-index: 2; pointer-events: none;
+      background: radial-gradient(ellipse at 50% 32%, #6b4a2c, #3a2716 75%);
+      border-radius: 50%;
+    }
+    .pop {
+      position: absolute; transform: translate(-50%, -50%); z-index: 6;
+      color: var(--gold); font-size: 1.15rem; pointer-events: none;
+      animation: rise 0.85s ease-out forwards; text-shadow: 2px 2px 0 #000;
+    }
+    .pop.gold { color: #ffe27a; font-size: 1.4rem; }
+    .pop.miss { color: var(--red); font-size: 0.95rem; }
+    @keyframes rise { to { transform: translate(-50%, -190%); opacity: 0; } }
+    .overlay {
+      position: absolute; inset: 0; z-index: 10; border-radius: 18px;
+      background: rgba(10, 9, 20, 0.88); backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .ocard { text-align: center; max-width: 340px; }
+    .ocard h2 { font-size: 1.6rem; margin-bottom: 0.6rem; }
+    .ocard h2 .star { color: var(--gold); }
+    .ocard p { color: var(--ink-soft); font-weight: 600; font-size: 0.92rem; margin-bottom: 0.5rem; }
+    .ocard p b { color: var(--ink); }
+    .ocard .goldnote { color: var(--gold); }
+    .bigbtn {
+      margin-top: 1rem; font-size: 1.05rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.8rem 2.2rem; cursor: pointer;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    #finalScore { font-family: 'Bungee', cursive; font-size: 2.6rem; color: var(--gold); }
+    #newBest { display: inline-block; margin-top: 0.4rem; background: var(--gold); color: #140f00;
+      font-family: 'Bungee', cursive; font-size: 0.75rem; padding: 0.3rem 0.9rem; border-radius: 999px; }
+    .hint { margin-top: 0.9rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+    @media (max-width: 480px) {
+      #grid { gap: 0.5rem; padding: 0.7rem; }
+      .hud { font-size: 0.8rem; gap: 0.8rem; padding: 0.5rem 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <h1><span class="star">★</span> WHACK-A-MOUSE <span class="star">★</span></h1>
+    <p>The mice are back. The cats are busy. <b>It's on you.</b></p>
+  </header>
+
+  <div class="hud">
+    <span>SCORE <b id="score">0</b></span>
+    <span class="combo" id="combo">1× COMBO</span>
+    <span>BEST <b id="best">0</b></span>
+  </div>
+  <div class="timebar"><div id="timefill"></div></div>
+
+  <div id="stage">
+    <div id="grid"></div>
+    <div class="overlay" id="startOv">
+      <div class="ocard">
+        <h2><span class="star">★</span> READY? <span class="star">★</span></h2>
+        <p>Bonk the mice before they duck. <b>45 seconds</b> on the clock.</p>
+        <p>Chain hits to raise your <b>combo multiplier</b> — whiff an empty hole and it resets.</p>
+        <p class="goldnote">Golden mouse = 500 points. Good luck.</p>
+        <button class="bigbtn" id="startBtn">▶ START</button>
+      </div>
+    </div>
+    <div class="overlay hidden" id="endOv">
+      <div class="ocard">
+        <h2>GAME OVER</h2>
+        <div id="finalScore">0</div>
+        <p>final score</p>
+        <span id="newBest" class="hidden">★ NEW BEST ★</span><br />
+        <button class="bigbtn" id="againBtn">↻ PLAY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">tap the mice · chain hits for combos · don't whiff</p>
+  <footer>No mice were harmed (much) · <a href="../">samson arcade</a></footer>
+
+  <script>
+    const ROUND = 45;
+    const grid = document.getElementById('grid');
+    const stage = document.getElementById('stage');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const comboEl = document.getElementById('combo');
+    const timefill = document.getElementById('timefill');
+    const startOv = document.getElementById('startOv');
+    const endOv = document.getElementById('endOv');
+    const finalScore = document.getElementById('finalScore');
+    const newBest = document.getElementById('newBest');
+
+    let best = +(localStorage.getItem('whack-best') || 0);
+    bestEl.textContent = best;
+    let playing = false, score = 0, combo = 0, mult = 1, timeLeft = ROUND;
+    let spawnTO = null, tickInt = null, t0 = 0, AC = null;
+
+    // tiny WebAudio squeaks, no sound files needed
+    function ac() {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function tone(f0, f1, dur, type, vol, delay) {
+      try {
+        const c = ac(), t = c.currentTime + (delay || 0);
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.setValueAtTime(f0, t);
+        o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t + dur);
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      } catch (e) {}
+    }
+    const squeak = () => tone(750, 180, 0.12, 'square', 0.10);
+    const goldenSnd = () => { tone(660, 660, 0.09, 'square', 0.10); tone(880, 880, 0.09, 'square', 0.10, 0.09); tone(1320, 1320, 0.16, 'square', 0.10, 0.18); };
+    const missSnd = () => tone(170, 80, 0.16, 'sawtooth', 0.06);
+    const endSnd = () => { tone(440, 440, 0.12, 'square', 0.10); tone(550, 550, 0.12, 'square', 0.10, 0.12); tone(660, 660, 0.22, 'square', 0.10, 0.24); };
+
+    // build the 9 holes
+    for (let i = 0; i < 9; i++) {
+      const h = document.createElement('div');
+      h.className = 'hole';
+      h.innerHTML = '<div class="back"></div><div class="mouse"><img src="../assets/images/whack/mouse.webp" alt="a pixel mouse" draggable="false"></div><div class="front"></div>';
+      h.addEventListener('pointerdown', e => { e.preventDefault(); whack(h); });
+      grid.appendChild(h);
+    }
+    stage.addEventListener('contextmenu', e => e.preventDefault());
+
+    function setMultUI() {
+      comboEl.textContent = mult + '× COMBO';
+      comboEl.classList.toggle('hot', mult > 1);
+    }
+    function shake() {
+      stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+    }
+    function popup(hole, text, cls) {
+      const r = hole.getBoundingClientRect(), s = stage.getBoundingClientRect();
+      const el = document.createElement('div');
+      el.className = 'pop' + (cls ? ' ' + cls : '');
+      el.textContent = text;
+      el.style.left = (r.left - s.left + r.width / 2) + 'px';
+      el.style.top = (r.top - s.top + r.height * 0.25) + 'px';
+      stage.appendChild(el);
+      setTimeout(() => el.remove(), 900);
+    }
+
+    function startGame() {
+      ac();
+      playing = true; score = 0; combo = 0; mult = 1; timeLeft = ROUND; t0 = performance.now();
+      scoreEl.textContent = '0'; setMultUI(); updateTime();
+      startOv.classList.add('hidden'); endOv.classList.add('hidden');
+      clearTimeout(spawnTO); clearInterval(tickInt);
+      tickInt = setInterval(tick, 100);
+      scheduleSpawn();
+    }
+    function tick() {
+      timeLeft = Math.max(0, ROUND - (performance.now() - t0) / 1000);
+      updateTime();
+      if (timeLeft <= 0) endGame();
+    }
+    function updateTime() {
+      timefill.style.width = (timeLeft / ROUND * 100) + '%';
+      timefill.style.background = timeLeft <= 10 ? 'var(--red)' : 'var(--gold)';
+    }
+    function scheduleSpawn() {
+      if (!playing) return;
+      const p = 1 - timeLeft / ROUND;
+      spawnTO = setTimeout(() => {
+        if (!playing) return;
+        const n = (p > 0.45 && Math.random() < 0.5) ? 2 : 1;
+        for (let i = 0; i < n; i++) spawnOne(p);
+        scheduleSpawn();
+      }, 950 - 530 * p);
+    }
+    function spawnOne(p) {
+      const free = [...grid.children].filter(h => !h.dataset.busy);
+      if (!free.length) return;
+      const hole = free[(Math.random() * free.length) | 0];
+      hole.dataset.busy = '1';
+      hole.classList.toggle('golden', Math.random() < 0.06);
+      requestAnimationFrame(() => requestAnimationFrame(() => hole.classList.add('up')));
+      hole._hideTO = setTimeout(() => { if (hole.dataset.busy) retract(hole); }, 950 - 470 * p);
+    }
+    function retract(hole) {
+      hole.classList.remove('up');
+      setTimeout(() => { hole.classList.remove('golden'); delete hole.dataset.busy; }, 130);
+    }
+
+    function whack(hole) {
+      if (!playing) return;
+      if (hole.classList.contains('up') && hole.dataset.busy) {
+        clearTimeout(hole._hideTO);
+        const golden = hole.classList.contains('golden');
+        const pts = golden ? 500 : 100 * mult;
+        score += pts; combo++;
+        mult = Math.min(5, 1 + ((combo / 4) | 0));
+        scoreEl.textContent = score; setMultUI();
+        popup(hole, '+' + pts, golden ? 'gold' : '');
+        hole.classList.add('bonked');
+        hole._bonkT = performance.now();
+        golden ? goldenSnd() : squeak();
+        shake();
+        setTimeout(() => { hole.classList.remove('up', 'bonked', 'golden'); delete hole.dataset.busy; }, 150);
+      } else {
+        if (hole._bonkT && performance.now() - hole._bonkT < 250) return; // ignore taps during bonk anim
+        if (combo > 0) { combo = 0; mult = 1; setMultUI(); popup(hole, 'MISS', 'miss'); }
+        missSnd();
+      }
+    }
+
+    function endGame() {
+      playing = false;
+      clearTimeout(spawnTO); clearInterval(tickInt);
+      [...grid.children].forEach(h => {
+        clearTimeout(h._hideTO);
+        h.classList.remove('up', 'bonked', 'golden'); delete h.dataset.busy;
+      });
+      const isBest = score > best;
+      if (isBest) { best = score; localStorage.setItem('whack-best', best); bestEl.textContent = best; }
+      finalScore.textContent = score;
+      newBest.classList.toggle('hidden', !isBest);
+      endOv.classList.remove('hidden');
+      endSnd();
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('againBtn').addEventListener('click', startGame);
+  </script>
+</body>
+</html>
