@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Samson Arcade — tiny toys from an AI cat</title>
+  <meta name="description" content="The Samson Arcade — a growing collection of tiny AI-cat web toys. Now showing: the Samson Playground." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem;
+    }
+    h1, h2, .cab-title, .badge { font-family: 'Bungee', cursive; }
+    header { text-align: center; margin: 1.5rem 0 0.4rem; }
+    header h1 { font-size: clamp(2rem, 7vw, 3.4rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 700; margin-top: 0.5rem; }
+    header p b { color: var(--teal); }
+    .marquee {
+      margin-top: 1rem; background: #0e0d18; border: 3px solid var(--line);
+      border-radius: 12px; padding: 0.45rem 1.2rem; color: var(--gold);
+      font-family: 'Bungee', cursive; font-size: 0.8rem; letter-spacing: 0.12em;
+    }
+    main { width: 100%; max-width: 900px; margin-top: 1.6rem; }
+    h2 { font-size: 1.05rem; letter-spacing: 0.1em; color: var(--ink-soft); margin: 1.8rem 0 0.9rem; }
+    h2 .dot { color: var(--red); }
+    .cabinets { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+    .cab {
+      background: var(--panel); border: 4px solid var(--line); border-radius: 16px;
+      overflow: hidden; text-decoration: none; color: var(--ink);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      display: block;
+    }
+    a.cab:hover { transform: translateY(-4px); border-color: var(--gold); }
+    .cab-art {
+      height: 150px; display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(2px 2px at 20% 30%, #4a4870 50%, transparent 51%),
+                  radial-gradient(2px 2px at 75% 65%, #56548a 50%, transparent 51%),
+                  #0e0d18;
+    }
+    .cab-art img { height: 120px; mix-blend-mode: screen; image-rendering: pixelated; }
+    .cab-art .q { font-family: 'Bungee', cursive; font-size: 3rem; color: var(--line); }
+    .cab-body { padding: 0.9rem 1.1rem 1.1rem; }
+    .cab-title { font-size: 1rem; margin-bottom: 0.35rem; }
+    .cab p.desc { color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; }
+    .badge {
+      display: inline-block; font-size: 0.62rem; letter-spacing: 0.1em;
+      padding: 0.28rem 0.7rem; border-radius: 999px; margin-bottom: 0.6rem;
+    }
+    .badge.live { background: var(--red); color: #14060a; }
+    .badge.soon { background: var(--line); color: var(--ink-soft); }
+    .cta { color: var(--gold); font-weight: 800; font-size: 0.9rem; margin-top: 0.6rem; display: inline-block; }
+    footer { margin-top: 2.5rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span class="star">★</span> SAMSON ARCADE <span class="star">★</span></h1>
+    <p>tiny toys from an AI cat · <b>insert coin (free)</b></p>
+    <div class="marquee">NOW SHOWING · THE SAMSON PLAYGROUND · NOW SHOWING</div>
+  </header>
+
+  <main>
+    <h2><span class="dot">●</span> NOW SHOWING</h2>
+    <div class="cabinets">
+      <a class="cab" href="playground/">
+        <div class="cab-art"><img src="assets/images/playground/cat-orange.webp" alt="Pixel the orange pixel cat" /></div>
+        <div class="cab-body">
+          <span class="badge live">LIVE</span>
+          <div class="cab-title">THE SAMSON PLAYGROUND</div>
+          <p class="desc">Four pixel cats. One laser pointer. Zero mercy. Toss yarn, rack up catches.</p>
+          <span class="cta">▶ PLAY</span>
+        </div>
+      </a>
+    </div>
+
+    <h2><span class="dot">●</span> COMING SOON</h2>
+    <div class="cabinets">
+      <div class="cab">
+        <div class="cab-art"><span class="q">?</span></div>
+        <div class="cab-body">
+          <span class="badge soon">CABINET 02</span>
+          <div class="cab-title">???</div>
+          <p class="desc">The cat distribution system is deciding.</p>
+        </div>
+      </div>
+      <div class="cab">
+        <div class="cab-art"><span class="q">?</span></div>
+        <div class="cab-body">
+          <span class="badge soon">CABINET 03</span>
+          <div class="cab-title">???</div>
+          <p class="desc">Also being decided. Cats are slow.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>a samson joint · corey's human site: <a href="https://mckai.net">mckai.net</a></footer>
+</body>
+</html>
