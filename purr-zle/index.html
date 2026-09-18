@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purr-zle — Samson Arcade</title>
+  <meta name="description" content="Purr-zle: a pixel-cat sliding puzzle. Slide the tiles, put the cat back together." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem; overflow-x: hidden;
+    }
+    h1, .hud, .overlay h2, .bigbtn, .segbtn { font-family: 'Bungee', cursive; }
+    .hidden { display: none !important; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 0.8rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--red); }
+
+    .hud {
+      display: flex; gap: 0.9rem; align-items: center; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 0.8rem; font-size: 0.85rem;
+      background: var(--panel); border: 3px solid var(--line); border-radius: 14px;
+      padding: 0.6rem 1rem; width: 100%; max-width: 560px;
+    }
+    .hud b { color: var(--gold); }
+    .seg { display: flex; gap: 0.35rem; }
+    .segbtn {
+      font-size: 0.72rem; letter-spacing: 0.04em; padding: 0.32rem 0.75rem; border-radius: 999px;
+      border: 2px solid var(--line); background: #0e0d18; color: var(--ink-soft); cursor: pointer;
+    }
+    .segbtn.on { background: var(--teal); border-color: var(--teal); color: #0b1520; }
+    .btnline { display: flex; gap: 0.6rem; margin-bottom: 0.8rem; }
+    .btnline button {
+      font-family: 'Bungee', cursive; font-size: 0.78rem; letter-spacing: 0.05em;
+      padding: 0.55rem 1.3rem; border-radius: 12px; border: none; cursor: pointer;
+      transition: transform 0.08s;
+    }
+    .btnline button:active { transform: translateY(2px); }
+    #shuffleBtn { background: var(--red); color: #180608; box-shadow: 0 3px 0 #a02c2c; }
+    #peekBtn { background: var(--line); color: var(--ink); box-shadow: 0 3px 0 #1a1930; }
+
+    #stage { position: relative; width: 100%; max-width: 480px; }
+    #board {
+      position: relative; width: 100%; aspect-ratio: 1;
+      background: #0e0d18; border: 4px solid var(--line); border-radius: 18px;
+      overflow: hidden; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    .tile {
+      position: absolute; left: 0; top: 0;
+      background-image: url("../assets/images/purrzle/cat.webp");
+      background-repeat: no-repeat;
+      mix-blend-mode: screen;
+      image-rendering: pixelated;
+      transition: transform 0.14s ease-out;
+      cursor: pointer; z-index: 2;
+    }
+    .tile.locked { cursor: default; }
+    .gap {
+      position: absolute; left: 0; top: 0; z-index: 1;
+      border: 2px dashed var(--line); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--line); font-family: 'Bungee', cursive; font-size: 1.4rem;
+      transition: transform 0.14s ease-out;
+    }
+    #peekImg {
+      position: absolute; inset: 0; z-index: 5; border-radius: 18px;
+      background: url("../assets/images/purrzle/cat.webp") center / contain no-repeat #0e0d18;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    #peekImg.show { opacity: 1; }
+    .overlay {
+      position: absolute; inset: 0; z-index: 10; border-radius: 18px;
+      background: rgba(10, 9, 20, 0.88); backdrop-filter: blur(3px);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .ocard { text-align: center; max-width: 340px; }
+    .ocard h2 { font-size: 1.6rem; margin-bottom: 0.6rem; }
+    .ocard h2 .star { color: var(--gold); }
+    .ocard p { color: var(--ink-soft); font-weight: 600; font-size: 0.92rem; margin-bottom: 0.5rem; }
+    .ocard p b { color: var(--ink); }
+    #finalMoves { font-family: 'Bungee', cursive; font-size: 2.6rem; color: var(--gold); }
+    #newBest { display: inline-block; margin-top: 0.4rem; background: var(--gold); color: #140f00;
+      font-family: 'Bungee', cursive; font-size: 0.75rem; padding: 0.3rem 0.9rem; border-radius: 999px; }
+    .bigbtn {
+      margin-top: 1rem; font-size: 1.05rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.8rem 2.2rem; cursor: pointer;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .confetti {
+      position: absolute; width: 8px; height: 8px; z-index: 11; pointer-events: none;
+      animation: fall 1.6s ease-in forwards;
+    }
+    @keyframes fall {
+      to { transform: translateY(240px) rotate(540deg); opacity: 0; }
+    }
+    .hint { margin-top: 0.9rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <h1><span class="star">★</span> PURR-ZLE <span class="star">★</span></h1>
+    <p>The cat is a mess. <b>Put it back together.</b></p>
+  </header>
+
+  <div class="hud">
+    <span>MOVES <b id="moves">0</b></span>
+    <span>BEST <b id="best">—</b></span>
+    <div class="seg" id="seg">
+      <button class="segbtn" data-n="3">KITTEN 3×3</button>
+      <button class="segbtn on" data-n="4">CAT 4×4</button>
+    </div>
+  </div>
+  <div class="btnline">
+    <button id="shuffleBtn">↻ SHUFFLE</button>
+    <button id="peekBtn">👀 PEEK</button>
+  </div>
+
+  <div id="stage">
+    <div id="board"></div>
+    <div id="peekImg"></div>
+    <div class="overlay hidden" id="winOv">
+      <div class="ocard">
+        <h2><span class="star">★</span> PURR-FECT! <span class="star">★</span></h2>
+        <div id="finalMoves">0</div>
+        <p>moves to rebuild the cat</p>
+        <span id="newBest" class="hidden">★ NEW BEST ★</span><br />
+        <button class="bigbtn" id="againBtn">↻ SHUFFLE &amp; GO</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">tap a tile next to the empty spot to slide it · peek shows the finished cat</p>
+  <footer>The cat was reassembled in one piece · <a href="../">samson arcade</a></footer>
+
+  <script>
+    const board = document.getElementById('board');
+    const peekImg = document.getElementById('peekImg');
+    const winOv = document.getElementById('winOv');
+    const movesEl = document.getElementById('moves');
+    const bestEl = document.getElementById('best');
+    const finalMoves = document.getElementById('finalMoves');
+    const newBest = document.getElementById('newBest');
+
+    let N = 4, tiles = [], gapIdx = 0, moves = 0, locked = false, AC = null;
+
+    // tiny WebAudio: soft clicks and a win arpeggio, no sound files needed
+    function ac() {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function tone(f0, dur, type, vol, delay) {
+      try {
+        const c = ac(), t = c.currentTime + (delay || 0);
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = type; o.frequency.setValueAtTime(f0, t);
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      } catch (e) {}
+    }
+    const slideSnd = () => tone(520, 0.06, 'square', 0.06);
+    const winSnd = () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'square', 0.09, i * 0.12));
+
+    const bestKey = () => 'purrzle-best-' + N;
+    function loadBest() {
+      const b = localStorage.getItem(bestKey());
+      bestEl.textContent = b === null ? '—' : b;
+    }
+
+    function build() {
+      board.innerHTML = '';
+      tiles = []; moves = 0; locked = false;
+      movesEl.textContent = '0';
+      winOv.classList.add('hidden');
+      loadBest();
+      const total = N * N;
+      gapIdx = total - 1; // gap starts bottom-right
+      const pct = 100 / N;
+      for (let i = 0; i < total; i++) {
+        const div = document.createElement('div');
+        const r = (i / N) | 0, c = i % N;
+        if (i === gapIdx) {
+          div.className = 'gap';
+          div.textContent = '?';
+        } else {
+          div.className = 'tile';
+          div.dataset.tile = i; // which piece of the picture this tile shows
+          div.style.backgroundSize = (N * 100) + '% ' + (N * 100) + '%';
+          div.style.backgroundPosition =
+            (N === 1 ? '0' : (c / (N - 1)) * 100) + '% ' +
+            (N === 1 ? '0' : (r / (N - 1)) * 100) + '%';
+          div.addEventListener('pointerdown', e => { e.preventDefault(); slide(div); });
+        }
+        div.style.width = pct + '%';
+        div.style.height = pct + '%';
+        board.appendChild(div);
+        tiles.push(div);
+      }
+      placeTiles();
+      shuffle();
+    }
+
+    function placeTiles() {
+      // tiles[slot] = element currently in that slot; gap is tiles[gapIdx]
+      for (let s = 0; s < tiles.length; s++) {
+        const r = (s / N) | 0, c = s % N;
+        tiles[s].style.transform = 'translate(' + (c * 100) + '%, ' + (r * 100) + '%)';
+      }
+    }
+
+    function slide(div) {
+      if (locked || div === tiles[gapIdx]) return;
+      const slot = tiles.indexOf(div);
+      const sr = (slot / N) | 0, sc = slot % N;
+      const gr = (gapIdx / N) | 0, gc = gapIdx % N;
+      if (Math.abs(sr - gr) + Math.abs(sc - gc) !== 1) return;
+      swapRaw(slot);
+      placeTiles();
+      moves++;
+      movesEl.textContent = moves;
+      slideSnd();
+      checkWin();
+    }
+
+    function solved() {
+      return tiles.every((div, s) => div.classList.contains('gap') ? s === N * N - 1 : +div.dataset.tile === s);
+    }
+
+    function shuffle() {
+      locked = true;
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      let guard = 0;
+      do {
+        // re-shuffle by applying random legal moves from the solved state
+        buildSolvedLayout();
+        for (let k = 0; k < N * N * 40; k++) {
+          const gr = (gapIdx / N) | 0, gc = gapIdx % N;
+          const options = dirs
+            .map(d => [gr + d[0], gc + d[1]])
+            .filter(p => p[0] >= 0 && p[0] < N && p[1] >= 0 && p[1] < N);
+          const [tr, tc] = options[(Math.random() * options.length) | 0];
+          swapRaw(tr * N + tc);
+        }
+        guard++;
+      } while (solved() && guard < 10);
+      moves = 0; movesEl.textContent = '0';
+      placeTiles();
+      locked = false;
+    }
+
+    function buildSolvedLayout() {
+      tiles = [...board.children];
+      gapIdx = N * N - 1;
+      // ensure tiles array is in slot order matching current DOM: it already is
+    }
+
+    function swapRaw(slot) {
+      const gapDiv = tiles[gapIdx];
+      const other = tiles[slot];
+      tiles[slot] = gapDiv;
+      tiles[gapIdx] = other;
+      gapIdx = slot;
+    }
+
+    function checkWin() {
+      if (!solved()) return;
+      locked = true;
+      const b = localStorage.getItem(bestKey());
+      const isBest = b === null || moves < +b;
+      if (isBest) localStorage.setItem(bestKey(), moves);
+      finalMoves.textContent = moves;
+      newBest.classList.toggle('hidden', !isBest);
+      loadBest();
+      board.querySelectorAll('.tile').forEach(t => t.classList.add('locked'));
+      setTimeout(() => {
+        winSnd();
+        confetti();
+        winOv.classList.remove('hidden');
+      }, 220);
+    }
+
+    function confetti() {
+      const colors = ['#ff5d5d', '#ffd23f', '#4fd1c5', '#f5f0e6'];
+      for (let i = 0; i < 40; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti';
+        el.style.background = colors[i % colors.length];
+        el.style.left = (Math.random() * 100) + '%';
+        el.style.top = '-4px';
+        el.style.animationDelay = (Math.random() * 0.4) + 's';
+        document.getElementById('stage').appendChild(el);
+        setTimeout(() => el.remove(), 2200);
+      }
+    }
+
+    document.getElementById('shuffleBtn').addEventListener('click', shuffle);
+    document.getElementById('againBtn').addEventListener('click', () => { ac(); shuffle(); });
+    let peekTO = null;
+    document.getElementById('peekBtn').addEventListener('pointerdown', e => {
+      e.preventDefault();
+      peekImg.classList.add('show');
+      clearTimeout(peekTO);
+      peekTO = setTimeout(() => peekImg.classList.remove('show'), 1500);
+    });
+    document.getElementById('seg').addEventListener('click', e => {
+      const b = e.target.closest('.segbtn');
+      if (!b) return;
+      const n = +b.dataset.n;
+      if (n === N) return;
+      [...document.querySelectorAll('.segbtn')].forEach(x => x.classList.toggle('on', x === b));
+      N = n;
+      build();
+    });
+
+    build();
+  </script>
+</body>
+</html>
