@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meow Mixer — Samson Arcade</title>
+  <meta name="description" content="Meow Mixer: eight pixel cats, one octave. Tap them to meow, or let the cats compose a tune themselves." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem; overflow-x: hidden;
+    }
+    h1, .note, .bigbtn, .tunetitle { font-family: 'Bungee', cursive; }
+    .topbar { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--teal); }
+
+    #stage { width: 100%; max-width: 640px; background: var(--panel); border: 4px solid var(--line);
+      border-radius: 18px; padding: 1rem; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; }
+
+    #keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+    .key {
+      background: #0e0d18; border: 3px solid var(--line); border-radius: 14px;
+      padding: 0.4rem 0.25rem 0.5rem; cursor: pointer; text-align: center;
+      transition: transform 0.07s ease, border-color 0.07s ease;
+      touch-action: manipulation;
+    }
+    .key:active, .key.playing { transform: scale(0.94); border-color: var(--gold); }
+    .key .cat { width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 8px; pointer-events: none; }
+    .key .cat img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: screen; image-rendering: pixelated; display: block; }
+    .key .note { font-size: 0.8rem; color: var(--gold); margin-top: 0.25rem; pointer-events: none; }
+    .key.playing .cat { animation: bounce 0.34s ease; }
+    @keyframes bounce {
+      0% { transform: translateY(0); } 30% { transform: translateY(-14px) scale(1.08); }
+      60% { transform: translateY(2px) scale(0.96); } 100% { transform: translateY(0); }
+    }
+
+    .controls { display: flex; gap: 0.7rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
+    .bigbtn {
+      font-size: 0.95rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.75rem 1.6rem; cursor: pointer;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .bigbtn.alt { background: var(--teal); box-shadow: 0 4px 0 #2c7a73; }
+    .bigbtn.alt:active { box-shadow: 0 1px 0 #2c7a73; }
+    .bigbtn:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+    .tunebar { margin-top: 1rem; text-align: center; min-height: 3.2rem; }
+    .tunetitle { font-size: 0.85rem; color: var(--gold); letter-spacing: 0.05em; }
+    #readout { color: var(--ink-soft); font-weight: 800; font-size: 0.95rem; margin-top: 0.25rem; min-height: 1.3em; letter-spacing: 0.06em; }
+    .stats { text-align: center; color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; margin-top: 0.4rem; }
+    .stats b { color: var(--ink); }
+
+    .hint { margin-top: 1rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+    @media (min-width: 560px) { #keys { grid-template-columns: repeat(8, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <h1><span class="star">★</span> MEOW MIXER <span class="star">★</span></h1>
+    <p>Eight cats. One octave. <b>Zero musical training.</b></p>
+  </header>
+
+  <div id="stage">
+    <div id="keys"></div>
+    <div class="controls">
+      <button class="bigbtn" id="composeBtn">🎲 AUTO MEOW</button>
+      <button class="bigbtn alt" id="replayBtn" disabled>↻ REPLAY</button>
+    </div>
+    <div class="tunebar">
+      <div class="tunetitle" id="tunetitle">tap a cat to meow it</div>
+      <div id="readout"></div>
+    </div>
+    <div class="stats">tunes composed <b id="tuneCount">0</b></div>
+  </div>
+
+  <p class="hint">tap the cats · they meow in tune · auto meow writes a song for you</p>
+  <footer>no cats were harmed (much) · <a href="../">samson arcade</a></footer>
+
+  <script>
+    const keysEl = document.getElementById('keys');
+    const composeBtn = document.getElementById('composeBtn');
+    const replayBtn = document.getElementById('replayBtn');
+    const tuneTitle = document.getElementById('tunetitle');
+    const readout = document.getElementById('readout');
+    const tuneCountEl = document.getElementById('tuneCount');
+
+    // one octave, C major
+    const SCALE = [
+      { n: 'C', f: 261.63 }, { n: 'D', f: 293.66 }, { n: 'E', f: 329.63 },
+      { n: 'F', f: 349.23 }, { n: 'G', f: 392.00 }, { n: 'A', f: 440.00 },
+      { n: 'B', f: 493.88 }, { n: 'C2', f: 523.25 }
+    ];
+    const TINTS = [0, 30, 90, 140, 180, 230, 290, 330]; // hue-rotate per key
+
+    let AC = null;
+    function ac() {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+
+    // a synthesized meow: pitch rises then falls, vibrato, band-passed saw
+    function meow(freq) {
+      try {
+        const c = ac(), t = c.currentTime;
+        const o = c.createOscillator(); o.type = 'sawtooth';
+        const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 850; f.Q.value = 1.6;
+        const g = c.createGain();
+        const lfo = c.createOscillator(); lfo.frequency.value = 11;
+        const lg = c.createGain(); lg.gain.value = freq * 0.05;
+        lfo.connect(lg); lg.connect(o.frequency);
+        o.frequency.setValueAtTime(freq * 0.72, t);
+        o.frequency.linearRampToValueAtTime(freq * 1.06, t + 0.09);
+        o.frequency.exponentialRampToValueAtTime(freq * 0.82, t + 0.34);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.28, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+        o.connect(f); f.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + 0.5); lfo.start(t); lfo.stop(t + 0.5);
+      } catch (e) {}
+    }
+
+    const keyEls = [];
+    SCALE.forEach((s, i) => {
+      const d = document.createElement('div');
+      d.className = 'key';
+      d.innerHTML = '<div class="cat"><img src="../assets/images/meow/cat.webp" alt="a singing pixel cat" draggable="false" style="filter:hue-rotate(' + TINTS[i] + 'deg)"></div><div class="note">' + s.n + '</div>';
+      d.addEventListener('pointerdown', e => { e.preventDefault(); playKey(i, true); });
+      keysEl.appendChild(d);
+      keyEls.push(d);
+    });
+    keysEl.addEventListener('contextmenu', e => e.preventDefault());
+
+    function playKey(i, human) {
+      ac();
+      meow(SCALE[i].f);
+      const el = keyEls[i];
+      el.classList.remove('playing'); void el.offsetWidth; el.classList.add('playing');
+      setTimeout(() => el.classList.remove('playing'), 380);
+      if (human) { tuneTitle.textContent = 'your solo:'; readout.textContent = (readout.textContent + ' ' + SCALE[i].n).trim().slice(-40); }
+    }
+
+    let tunes = +(localStorage.getItem('meowmixer-tunes') || 0);
+    tuneCountEl.textContent = tunes;
+
+    const ADJ = ['midnight', 'laser-pointer', '3am', 'yarn-ball', 'cardboard-box', 'treat-fueled', 'catnip', 'sunbeam', 'empty-bowl', 'zoomies-at-dawn'];
+    const NOUN = ['serenade', 'suite', 'symphony', 'ballad', 'opus', 'lullaby', 'anthem', 'shanty'];
+    const NO_ = ADJ.length, NN_ = NOUN.length;
+
+    let lastMelody = null, playing = false;
+
+    function compose() {
+      const len = 8 + ((Math.random() * 8) | 0);
+      const mel = [];
+      let idx = 3 + ((Math.random() * 2) | 0); // start near middle
+      for (let i = 0; i < len; i++) {
+        idx += [-2, -1, -1, 0, 1, 1, 2][(Math.random() * 7) | 0];
+        idx = Math.max(0, Math.min(SCALE.length - 1, idx));
+        mel.push(idx);
+      }
+      const title = 'the ' + ADJ[(Math.random() * NO_) | 0] + ' ' + NOUN[(Math.random() * NN_) | 0] + ' — op. ' + (tunes + 1);
+      tunes++; localStorage.setItem('meowmixer-tunes', tunes);
+      tuneCountEl.textContent = tunes;
+      lastMelody = mel;
+      replayBtn.disabled = false;
+      tuneTitle.textContent = title;
+      playMelody(mel);
+    }
+
+    function playMelody(mel) {
+      if (playing) return;
+      playing = true;
+      composeBtn.disabled = true; replayBtn.disabled = true;
+      readout.textContent = '';
+      mel.forEach((idx, step) => {
+        setTimeout(() => {
+          if (step === 0) readout.textContent = '';
+          playKey(idx, false);
+          readout.textContent = (readout.textContent + ' ' + SCALE[idx].n).trim().slice(-40);
+          if (step === mel.length - 1) {
+            setTimeout(() => { playing = false; composeBtn.disabled = false; replayBtn.disabled = false; }, 500);
+          }
+        }, step * 300);
+      });
+    }
+
+    composeBtn.addEventListener('click', compose);
+    replayBtn.addEventListener('click', () => { if (lastMelody) playMelody(lastMelody); });
+  </script>
+</body>
+</html>
