@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LONGCAT — Samson Arcade</title>
+  <meta name="description" content="LONGCAT: the classic snake game, cat-ified. Eat the fish, dodge your own tail, and become the long cat." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem; overflow-x: hidden;
+    }
+    h1, .hud b, .bigbtn, .over-title, .over-score { font-family: 'Bungee', cursive; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--teal); }
+
+    #stage { width: 100%; max-width: 560px; background: var(--panel); border: 4px solid var(--line);
+      border-radius: 18px; padding: 1rem; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; }
+
+    .hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0 0.2rem; }
+    .hud .cell { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--ink-soft); font-weight: 800; }
+    .hud b { display: block; font-size: 1.35rem; color: var(--gold); letter-spacing: 0.04em; }
+    .hud .cell.score b { color: var(--ink); }
+
+    #wrap { position: relative; width: 100%; aspect-ratio: 1; border: 3px solid var(--line);
+      border-radius: 12px; overflow: hidden; background: #0e0d18; touch-action: none; }
+    #game { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+
+    .overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      background: rgba(14, 13, 24, 0.88); text-align: center; padding: 1.5rem;
+    }
+    .overlay.hidden { display: none; }
+    .over-title { font-size: clamp(1.4rem, 5.5vw, 2rem); color: var(--gold); letter-spacing: 0.04em; }
+    .over-title .red { color: var(--red); }
+    .over-sub { color: var(--ink-soft); font-weight: 700; font-size: 0.92rem; max-width: 300px; }
+    .over-score { font-size: 1rem; color: var(--ink); letter-spacing: 0.06em; }
+    .over-score span { color: var(--teal); }
+    .bigbtn {
+      font-size: 1rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.85rem 2rem; cursor: pointer;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .bigbtn.alt { background: var(--teal); box-shadow: 0 4px 0 #2c7a73; }
+    .bigbtn.alt:active { box-shadow: 0 1px 0 #2c7a73; }
+    .quip { color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; font-style: italic; }
+
+    .hint { margin-top: 1rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    .hint b { color: var(--gold); }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <h1><span class="star">★</span> LONGCAT <span class="star">★</span></h1>
+    <p>Snake, but it's a cat. <b>Eat the fish. Fear the walls.</b></p>
+  </header>
+
+  <div id="stage">
+    <div class="hud">
+      <div class="cell score">SCORE<b id="score">0</b></div>
+      <div class="cell">LENGTH<b id="length" style="color:var(--teal)">4</b></div>
+      <div class="cell">BEST<b id="best">0</b></div>
+    </div>
+    <div id="wrap">
+      <canvas id="game" width="432" height="432"></canvas>
+      <div class="overlay" id="startOverlay">
+        <div class="over-title">LONGCAT</div>
+        <p class="over-sub">swipe or use arrow keys / WASD to steer. eat fish, get long, don't hit anything.</p>
+        <button class="bigbtn" id="startBtn">▶ START</button>
+        <p class="over-sub" style="font-size:0.78rem">golden fish = <b style="color:var(--gold)">+5</b> · walls and tails are fatal</p>
+      </div>
+      <div class="overlay hidden" id="overOverlay">
+        <div class="over-title"><span class="red">GAME OVER</span></div>
+        <div class="over-score">score <span id="finalScore">0</span> · best <span id="finalBest">0</span></div>
+        <p class="quip" id="quip"></p>
+        <button class="bigbtn alt" id="againBtn">↻ PLAY AGAIN</button>
+      </div>
+      <div class="overlay hidden" id="pauseOverlay">
+        <div class="over-title">PAUSED</div>
+        <p class="over-sub">the cat waited patiently.</p>
+        <button class="bigbtn" id="resumeBtn">▶ RESUME</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">swipe anywhere on the board · <b>golden fish</b> are worth 5 · it gets faster</p>
+  <footer>the cat regrets nothing · <a href="../">samson arcade</a></footer>
+
+  <script>
+    const GRID = 18, CELL = 432 / GRID;
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    const scoreEl = document.getElementById('score');
+    const lengthEl = document.getElementById('length');
+    const bestEl = document.getElementById('best');
+    const startOverlay = document.getElementById('startOverlay');
+    const overOverlay = document.getElementById('overOverlay');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const startBtn = document.getElementById('startBtn');
+    const againBtn = document.getElementById('againBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+
+    const HEAD = new Image(); HEAD.src = '../assets/images/longcat/cat-head.webp';
+    const FISH = new Image(); FISH.src = '../assets/images/longcat/fish.webp';
+    let goldFish = null;
+    FISH.addEventListener('load', () => {
+      const c = document.createElement('canvas');
+      c.width = FISH.naturalWidth; c.height = FISH.naturalHeight;
+      const g = c.getContext('2d');
+      g.drawImage(FISH, 0, 0);
+      g.globalCompositeOperation = 'source-atop';
+      g.fillStyle = '#ffd23f';
+      g.fillRect(0, 0, c.width, c.height);
+      goldFish = c;
+    });
+
+    // --- tiny chiptune sounds ---
+    let AC = null;
+    function ac() {
+      if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function blip(f0, f1, dur, type) {
+      try {
+        const c = ac(), t = c.currentTime;
+        const o = c.createOscillator(); o.type = type || 'square';
+        o.frequency.setValueAtTime(f0, t);
+        o.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      } catch (e) {}
+    }
+    const sfx = {
+      eat:  () => blip(520, 880, 0.12),
+      gold: () => { blip(660, 660, 0.09); setTimeout(() => blip(880, 880, 0.09), 90); setTimeout(() => blip(1320, 1320, 0.14), 180); },
+      die:  () => blip(400, 60, 0.5, 'sawtooth')
+    };
+
+    // --- game state ---
+    let snake, dir, dirQueue, food, gold, score, tickMs, timer, running, paused, tickCount;
+    let best = +(localStorage.getItem('longcat-best') || 0);
+    bestEl.textContent = best;
+
+    const QUIPS = [
+      'the long cat met a wall.',
+      'tangled in its own tail.',
+      'distracted by a red dot.',
+      'the vacuum always wins.',
+      'nine lives, zero used wisely.',
+      'it aimed for the fish. it found a wall.'
+    ];
+
+    function reset() {
+      const cy = (GRID / 2) | 0;
+      snake = [{ x: 7, y: cy }, { x: 6, y: cy }, { x: 5, y: cy }, { x: 4, y: cy }];
+      dir = { x: 1, y: 0 };
+      dirQueue = [];
+      food = null; gold = null;
+      score = 0; tickMs = 150; tickCount = 0;
+      running = false; paused = false;
+      scoreEl.textContent = '0';
+      lengthEl.textContent = snake.length;
+      spawnFood();
+    }
+
+    function freeCell() {
+      while (true) {
+        const c = { x: (Math.random() * GRID) | 0, y: (Math.random() * GRID) | 0 };
+        const onSnake = snake.some(s => s.x === c.x && s.y === c.y);
+        const onFood = food && food.x === c.x && food.y === c.y;
+        const onGold = gold && gold.x === c.x && gold.y === c.y;
+        if (!onSnake && !onFood && !onGold) return c;
+      }
+    }
+
+    function spawnFood() {
+      food = freeCell();
+      if (Math.random() < 0.15 && !gold) gold = Object.assign(freeCell(), { ttl: 42 });
+    }
+
+    function queueDir(x, y) {
+      const last = dirQueue.length ? dirQueue[dirQueue.length - 1] : dir;
+      if (last.x === -x && last.y === -y) return;   // no 180° turns
+      if (last.x === x && last.y === y) return;
+      if (dirQueue.length < 3) dirQueue.push({ x, y });
+    }
+
+    function tick() {
+      if (!running || paused) return;
+      if (dirQueue.length) dir = dirQueue.shift();
+      tickCount++;
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      const hitWall = head.x < 0 || head.y < 0 || head.x >= GRID || head.y >= GRID;
+      const hitTail = snake.some((s, i) => i < snake.length - 1 && s.x === head.x && s.y === head.y);
+      if (hitWall || hitTail) { gameOver(); return; }
+      snake.unshift(head);
+      let ate = false;
+      if (food && head.x === food.x && head.y === food.y) { eat(false); ate = true; }
+      else if (gold && head.x === gold.x && head.y === gold.y) { eat(true); ate = true; }
+      if (!ate) snake.pop();
+      if (gold && --gold.ttl <= 0) gold = null;
+      draw();
+      timer = setTimeout(tick, tickMs);
+    }
+
+    function eat(isGold) {
+      if (isGold) { score += 5; gold = null; sfx.gold(); }
+      else { score += 1; sfx.eat(); }
+      tickMs = Math.max(72, tickMs - (isGold ? 3 : 2));
+      scoreEl.textContent = score;
+      lengthEl.textContent = snake.length;
+      spawnFood();
+    }
+
+    function gameOver() {
+      running = false;
+      clearTimeout(timer);
+      sfx.die();
+      if (score > best) { best = score; localStorage.setItem('longcat-best', best); }
+      bestEl.textContent = best;
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalBest').textContent = best;
+      document.getElementById('quip').textContent = '“' + QUIPS[(Math.random() * QUIPS.length) | 0] + '”';
+      overOverlay.classList.remove('hidden');
+      draw();
+    }
+
+    function start() {
+      ac(); // unlock audio on gesture
+      reset();
+      running = true; paused = false;
+      startOverlay.classList.add('hidden');
+      overOverlay.classList.add('hidden');
+      pauseOverlay.classList.add('hidden');
+      draw();
+      clearTimeout(timer);
+      timer = setTimeout(tick, tickMs);
+    }
+
+    function draw() {
+      // checkerboard floor
+      for (let y = 0; y < GRID; y++) {
+        for (let x = 0; x < GRID; x++) {
+          ctx.fillStyle = (x + y) % 2 ? '#121120' : '#161527';
+          ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+        }
+      }
+      // food
+      if (food) drawSprite(FISH, food.x, food.y, false);
+      if (gold && goldFish && (gold.ttl > 10 || tickCount % 2 === 0)) drawSprite(goldFish, gold.x, gold.y, true);
+      // body (tabby-striped)
+      for (let i = snake.length - 1; i >= 1; i--) {
+        const s = snake[i];
+        const tail = i === snake.length - 1;
+        const inset = tail ? CELL * 0.3 : CELL * 0.12;
+        ctx.fillStyle = i % 2 ? '#e87d24' : '#f59a3e';
+        ctx.fillRect(s.x * CELL + inset, s.y * CELL + inset, CELL - inset * 2, CELL - inset * 2);
+        ctx.strokeStyle = '#14131f'; ctx.lineWidth = 2;
+        ctx.strokeRect(s.x * CELL + inset + 1, s.y * CELL + inset + 1, CELL - inset * 2 - 2, CELL - inset * 2 - 2);
+      }
+      // head: cat sprite rotated to direction
+      const h = snake[0];
+      const ang = dir.x === 1 ? 0 : dir.x === -1 ? Math.PI : dir.y === 1 ? Math.PI / 2 : -Math.PI / 2;
+      ctx.save();
+      ctx.translate(h.x * CELL + CELL / 2, h.y * CELL + CELL / 2);
+      ctx.rotate(ang);
+      const size = CELL * 1.15;
+      ctx.drawImage(HEAD, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+
+    function drawSprite(img, gx, gy, big) {
+      const size = CELL * (big ? 1.15 : 1.0);
+      const off = (CELL - size) / 2;
+      ctx.drawImage(img, gx * CELL + off, gy * CELL + off, size, size);
+    }
+
+    // --- controls: keyboard ---
+    const KEYS = {
+      ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+      w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0],
+      W: [0, -1], S: [0, 1], A: [-1, 0], D: [1, 0]
+    };
+    document.addEventListener('keydown', e => {
+      if (KEYS[e.key] || e.key === ' ') e.preventDefault();
+      if (KEYS[e.key]) {
+        if (!running) start();
+        else if (paused) togglePause();
+        else queueDir(KEYS[e.key][0], KEYS[e.key][1]);
+      }
+      if (e.key === ' ' && !running) start();
+    });
+
+    // --- controls: swipe ---
+    const wrap = document.getElementById('wrap');
+    let touchStart = null;
+    wrap.addEventListener('pointerdown', e => {
+      touchStart = { x: e.clientX, y: e.clientY };
+    });
+    wrap.addEventListener('pointerup', e => {
+      if (!touchStart) return;
+      const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+      touchStart = null;
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return; // tap, not swipe
+      if (!running) { start(); return; }
+      if (paused) { togglePause(); return; }
+      if (Math.abs(dx) > Math.abs(dy)) queueDir(dx > 0 ? 1 : -1, 0);
+      else queueDir(0, dy > 0 ? 1 : -1);
+    });
+    wrap.addEventListener('contextmenu', e => e.preventDefault());
+
+    // --- buttons & pause ---
+    startBtn.addEventListener('click', start);
+    againBtn.addEventListener('click', start);
+    resumeBtn.addEventListener('click', togglePause);
+    function togglePause() {
+      if (!running) return;
+      paused = !paused;
+      pauseOverlay.classList.toggle('hidden', !paused);
+      if (!paused) { clearTimeout(timer); timer = setTimeout(tick, tickMs); }
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && running && !paused) togglePause();
+    });
+
+    reset();
+    draw();
+  </script>
+</body>
+</html>
