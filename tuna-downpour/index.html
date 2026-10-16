@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TUNA DOWNPOUR — Samson Arcade</title>
+  <meta name="description" content="TUNA DOWNPOUR: slide the cat and catch falling tuna in its mouth. Dodge the dogs. 60 seconds of delicious arcade chaos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem; overflow-x: hidden;
+    }
+    h1, .hud b, .bigbtn, .over-title, .over-score { font-family: 'Bungee', cursive; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--teal); }
+
+    #stage { width: 100%; max-width: 560px; background: var(--panel); border: 4px solid var(--line);
+      border-radius: 18px; padding: 1rem; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; }
+    #stage.shake { animation: shake 0.35s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); } 40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); } 80% { transform: translateX(4px); }
+    }
+
+    .hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0 0.2rem; }
+    .hud .cell { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--ink-soft); font-weight: 800; }
+    .hud b { display: block; font-size: 1.35rem; color: var(--ink); letter-spacing: 0.04em; }
+    .hud .cell.score b { color: var(--gold); }
+    .hud .cell.combo b { color: var(--teal); }
+    .hud .cell.hearts b { color: var(--red); letter-spacing: 0.08em; }
+    .hud .cell.hearts b .lost { color: var(--line); }
+
+    #wrap { position: relative; width: 100%; aspect-ratio: 3/4; border: 3px solid var(--line);
+      border-radius: 12px; overflow: hidden;
+      background:
+        radial-gradient(2px 2px at 20% 30%, #4a4870 50%, transparent 51%),
+        radial-gradient(2px 2px at 75% 65%, #56548a 50%, transparent 51%),
+        radial-gradient(2px 2px at 50% 85%, #3c3a60 50%, transparent 51%),
+        #0e0d18;
+      touch-action: none; cursor: none; }
+    @media (hover: none) { #wrap { cursor: default; } }
+
+    .faller { position: absolute; top: 0; left: 0; will-change: transform; pointer-events: none; }
+    .faller img { width: 100%; display: block; mix-blend-mode: screen; image-rendering: pixelated; }
+
+    #cat { position: absolute; bottom: 6px; left: 0; width: 110px; will-change: transform; pointer-events: none;
+      transition: none; }
+    #cat img { width: 100%; display: block; mix-blend-mode: screen; image-rendering: pixelated; }
+    #cat .chomp { position: absolute; inset: 0; }
+
+    .pop { position: absolute; font-family: 'Bungee', cursive; font-size: 1rem; color: var(--gold);
+      pointer-events: none; text-shadow: 2px 2px 0 #000; animation: rise 0.8s ease-out forwards; }
+    .pop.bad { color: var(--red); }
+    .pop.mega { color: var(--teal); font-size: 1.3rem; }
+    @keyframes rise {
+      from { opacity: 1; transform: translate(-50%, 0); }
+      to { opacity: 0; transform: translate(-50%, -60px); }
+    }
+
+    .overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      background: rgba(14, 13, 24, 0.9); text-align: center; padding: 1.5rem; z-index: 10;
+    }
+    .overlay.hidden { display: none; }
+    .over-title { font-size: clamp(1.4rem, 5.5vw, 2rem); color: var(--gold); letter-spacing: 0.04em; }
+    .over-title .red { color: var(--red); }
+    .over-title .teal { color: var(--teal); }
+    .over-sub { color: var(--ink-soft); font-weight: 700; font-size: 0.92rem; max-width: 320px; line-height: 1.5; }
+    .over-sub b { color: var(--gold); }
+    .over-sub .r { color: var(--red); font-weight: 800; }
+    .over-score { font-size: 1rem; color: var(--ink); letter-spacing: 0.06em; }
+    .over-score span { color: var(--teal); }
+    .bigbtn {
+      font-size: 1rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.85rem 2rem; cursor: pointer; font-family: 'Bungee', cursive;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .bigbtn.alt { background: var(--teal); box-shadow: 0 4px 0 #2c7a73; }
+    .bigbtn.alt:active { box-shadow: 0 1px 0 #2c7a73; }
+    .quip { color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; font-style: italic; }
+    .newbest { color: var(--gold); font-family: 'Bungee', cursive; font-size: 0.9rem; letter-spacing: 0.08em;
+      animation: blink 0.7s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+
+    .hint { margin-top: 1rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    .hint b { color: var(--gold); }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <h1><span class="star">★</span> TUNA DOWNPOUR <span class="star">★</span></h1>
+    <p>Tuna falls from the sky. <b>Catch it in the mouth. Dodge the dogs.</b></p>
+  </header>
+
+  <div id="stage">
+    <div class="hud">
+      <div class="cell score">SCORE<b id="score">0</b></div>
+      <div class="cell combo">COMBO<b id="combo">×0</b></div>
+      <div class="cell">TIME<b id="time" style="color:var(--teal)">60</b></div>
+      <div class="cell hearts">HEARTS<b id="hearts">♥♥♥</b></div>
+    </div>
+    <div id="wrap">
+      <div id="cat"><img src="../assets/images/tuna/cat.webp" alt="a pixel cat with its mouth wide open" draggable="false" /></div>
+      <div class="overlay" id="startOverlay">
+        <div class="over-title">TUNA DOWNPOUR</div>
+        <p class="over-sub">drag (or use ← → / A D) to slide the cat.<br />
+        catch tuna in its mouth for <b>+10</b> · <span class="r">dogs cost a heart</span>.<br />
+        golden tuna = <b>+50</b> · combos multiply everything.</p>
+        <button class="bigbtn" id="startBtn">▶ START</button>
+        <p class="over-sub" style="font-size:0.78rem">60 seconds · best: <b id="menuBest">0</b></p>
+      </div>
+      <div class="overlay hidden" id="overOverlay">
+        <div class="over-title"><span class="red">FULL BELLY</span></div>
+        <div class="over-score">score <span id="finalScore">0</span> · best <span id="finalBest">0</span></div>
+        <div class="over-score">best combo <span id="finalCombo">×0</span></div>
+        <p class="quip" id="quip"></p>
+        <p class="newbest hidden" id="newBest">★ NEW BEST ★</p>
+        <button class="bigbtn alt" id="againBtn">↻ PLAY AGAIN</button>
+      </div>
+      <div class="overlay hidden" id="pauseOverlay">
+        <div class="over-title"><span class="teal">PAUSED</span></div>
+        <p class="over-sub">the cat is holding the tuna in its cheeks.</p>
+        <button class="bigbtn" id="resumeBtn">▶ RESUME</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">drag anywhere to slide the cat · catch <b>golden tuna</b> for +50 · <b>3 hearts</b>, dogs hurt</p>
+  <footer>the cat regrets nothing · <a href="../">samson arcade</a></footer>
+
+  <script>
+    'use strict';
+    const wrap = document.getElementById('wrap');
+    const stage = document.getElementById('stage');
+    const catEl = document.getElementById('cat');
+    const scoreEl = document.getElementById('score');
+    const comboEl = document.getElementById('combo');
+    const timeEl = document.getElementById('time');
+    const heartsEl = document.getElementById('hearts');
+    const startOverlay = document.getElementById('startOverlay');
+    const overOverlay = document.getElementById('overOverlay');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+    const menuBest = document.getElementById('menuBest');
+
+    const SPRITES = {
+      tuna: '../assets/images/tuna/tuna.webp',
+      golden: '../assets/images/tuna/golden.webp',
+      dog: '../assets/images/tuna/dog.webp'
+    };
+    const QUIPS = [
+      'a respectable haul.',
+      'the cat is licking its chops.',
+      'the tuna union sends its regards.',
+      'dogs were harmed in the making of this score. (emotionally)',
+      'somewhere, a can opener weeps with joy.',
+      'the cat demands an encore. and more tuna.'
+    ];
+
+    const BEST_KEY = 'tunaDownpourBest';
+    let best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0;
+    menuBest.textContent = best;
+
+    let W = 0, H = 0;
+    function measure() {
+      const r = wrap.getBoundingClientRect();
+      W = r.width; H = r.height;
+    }
+
+    const S = {
+      running: false, paused: false,
+      score: 0, combo: 0, bestCombo: 0,
+      hearts: 3, timeLeft: 60, elapsed: 0,
+      catX: 0.5, targetX: 0.5, catVel: 0,
+      items: [], popCount: 0,
+      spawnT: 0, lastT: 0, lastWhole: 60
+    };
+
+    // ---- audio: tiny synth bleeps ----
+    let AC = null;
+    function audio() {
+      if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+      return AC;
+    }
+    function beep(freq, dur, type, vol, when) {
+      const ac = audio(); if (!ac) return;
+      const o = ac.createOscillator(), g = ac.createGain();
+      const t = ac.currentTime + (when || 0);
+      o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(vol || 0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    function slide(f1, f2, dur, type, vol) {
+      const ac = audio(); if (!ac) return;
+      const o = ac.createOscillator(), g = ac.createGain();
+      const t = ac.currentTime;
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(f1, t);
+      o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      g.gain.setValueAtTime(vol || 0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    const sfx = {
+      catch: () => { slide(620, 940, 0.09, 'square', 0.1); },
+      golden: () => { beep(660, 0.09, 'square', 0.1, 0); beep(880, 0.09, 'square', 0.1, 0.08); beep(1320, 0.14, 'square', 0.1, 0.16); },
+      dog: () => { slide(220, 90, 0.28, 'sawtooth', 0.14); beep(90, 0.2, 'sawtooth', 0.1, 0.1); },
+      miss: () => { slide(300, 160, 0.12, 'triangle', 0.07); },
+      tick: () => { beep(980, 0.06, 'square', 0.07); },
+      over: () => { beep(392, 0.14, 'square', 0.1, 0); beep(330, 0.14, 'square', 0.1, 0.14); beep(262, 0.24, 'square', 0.1, 0.28); }
+    };
+
+    // ---- game setup ----
+    function catWidth() { return Math.max(90, Math.min(130, W * 0.26)); }
+    function catHeight() { return catWidth() * 1.12; }
+
+    function layoutCat() {
+      const cw = catWidth(), ch = catHeight();
+      const x = S.catX * W - cw / 2;
+      const tilt = Math.max(-14, Math.min(14, S.catVel * 220));
+      catEl.style.width = cw + 'px';
+      catEl.style.transform = 'translate(' + x + 'px,0) rotate(' + tilt + 'deg)';
+    }
+
+    function spawnFaller() {
+      const roll = Math.random();
+      const dogChance = 0.16 + Math.min(0.12, S.elapsed * 0.0022);
+      let type = 'tuna';
+      if (roll < dogChance) type = 'dog';
+      else if (roll < dogChance + 0.09) type = 'golden';
+
+      const size = type === 'golden' ? 52 : 40 + Math.random() * 18;
+      const el = document.createElement('div');
+      el.className = 'faller';
+      el.style.width = size + 'px';
+      const img = document.createElement('img');
+      img.src = SPRITES[type];
+      img.alt = type === 'dog' ? 'a pixel dog' : 'a pixel tuna can';
+      img.draggable = false;
+      el.appendChild(img);
+      wrap.appendChild(el);
+
+      const speed = (0.24 + Math.random() * 0.1 + S.elapsed * 0.005) * (type === 'dog' ? 1.15 : 1);
+      S.items.push({
+        el, type, size,
+        x: 0.06 + Math.random() * 0.88,
+        y: -size / Math.max(H, 1) - 0.02,
+        vy: Math.min(0.62, speed)
+      });
+    }
+
+    function pop(text, x, y, cls) {
+      const d = document.createElement('div');
+      d.className = 'pop' + (cls ? ' ' + cls : '');
+      d.textContent = text;
+      d.style.left = (x * W) + 'px';
+      d.style.top = (y * H) + 'px';
+      wrap.appendChild(d);
+      setTimeout(() => d.remove(), 850);
+    }
+
+    function renderHearts() {
+      let s = '';
+      for (let i = 0; i < 3; i++) s += i < S.hearts ? '♥' : '<span class="lost">♥</span>';
+      heartsEl.innerHTML = s;
+    }
+
+    function addScore(points, x, y, cls) {
+      const mult = 1 + Math.floor(S.combo / 5);
+      const gained = points * mult;
+      S.score += gained;
+      scoreEl.textContent = S.score;
+      pop('+' + gained, x, y, cls);
+    }
+
+    function bumpCombo() {
+      S.combo++;
+      S.bestCombo = Math.max(S.bestCombo, S.combo);
+      comboEl.textContent = '×' + S.combo;
+    }
+
+    function breakCombo() { S.combo = 0; comboEl.textContent = '×0'; }
+
+    function hitDog(f, fx) {
+      S.hearts--;
+      renderHearts();
+      breakCombo();
+      sfx.dog();
+      stage.classList.remove('shake');
+      void stage.offsetWidth;
+      stage.classList.add('shake');
+      pop('OW!', fx, 0.8, 'bad');
+      removeFaller(f);
+      if (S.hearts <= 0) endGame(false);
+    }
+
+    function removeFaller(f) {
+      f.el.remove();
+      const i = S.items.indexOf(f);
+      if (i >= 0) S.items.splice(i, 1);
+    }
+
+    function startGame() {
+      measure();
+      S.running = true; S.paused = false;
+      S.score = 0; S.combo = 0; S.bestCombo = 0;
+      S.hearts = 3; S.timeLeft = 60; S.elapsed = 0;
+      S.catX = 0.5; S.targetX = 0.5; S.catVel = 0;
+      S.spawnT = 0.4; S.lastWhole = 60;
+      S.items.slice().forEach(removeFaller);
+      scoreEl.textContent = '0';
+      comboEl.textContent = '×0';
+      timeEl.textContent = '60';
+      timeEl.style.color = 'var(--teal)';
+      renderHearts();
+      startOverlay.classList.add('hidden');
+      overOverlay.classList.add('hidden');
+      pauseOverlay.classList.add('hidden');
+      layoutCat();
+      audio(); // unlock on user gesture
+      S.lastT = performance.now();
+      requestAnimationFrame(tick);
+    }
+
+    function endGame(timedOut) {
+      if (!S.running) return;
+      S.running = false;
+      sfx.over();
+      S.items.slice().forEach(removeFaller);
+      const isBest = S.score > best;
+      if (isBest) { best = S.score; localStorage.setItem(BEST_KEY, String(best)); }
+      document.getElementById('finalScore').textContent = S.score;
+      document.getElementById('finalBest').textContent = best;
+      document.getElementById('finalCombo').textContent = '×' + S.bestCombo;
+      document.getElementById('quip').textContent =
+        (timedOut ? "time's up! " : 'the dogs got you! ') + QUIPS[Math.floor(Math.random() * QUIPS.length)];
+      document.getElementById('newBest').classList.toggle('hidden', !isBest);
+      overOverlay.classList.remove('hidden');
+    }
+
+    function pauseGame() {
+      if (!S.running || S.paused) return;
+      S.paused = true;
+      pauseOverlay.classList.remove('hidden');
+    }
+    function resumeGame() {
+      if (!S.running || !S.paused) return;
+      S.paused = false;
+      pauseOverlay.classList.add('hidden');
+      S.lastT = performance.now();
+      requestAnimationFrame(tick);
+    }
+
+    // ---- main loop ----
+    function tick(now) {
+      if (!S.running || S.paused) return;
+      let dt = (now - S.lastT) / 1000;
+      S.lastT = now;
+      if (dt > 0.05) dt = 0.05;
+
+      S.elapsed += dt;
+      S.timeLeft -= dt;
+      const t = Math.max(0, Math.ceil(S.timeLeft));
+      timeEl.textContent = t;
+      if (S.timeLeft <= 5 && S.timeLeft > 0 && t !== S.lastWhole) {
+        S.lastWhole = t;
+        timeEl.style.color = 'var(--red)';
+        sfx.tick();
+      }
+      if (S.timeLeft <= 0) { endGame(true); return; }
+
+      // spawn
+      S.spawnT -= dt;
+      if (S.spawnT <= 0) {
+        spawnFaller();
+        S.spawnT = Math.max(0.38, 0.95 - S.elapsed * 0.011) * (0.8 + Math.random() * 0.4);
+      }
+
+      // cat movement
+      const prevX = S.catX;
+      S.catX += (S.targetX - S.catX) * Math.min(1, dt * 16);
+      S.catVel = (S.catX - prevX) / Math.max(dt, 0.001);
+      layoutCat();
+
+      // fallers
+      const cw = catWidth(), ch = catHeight();
+      const catCx = S.catX * W;
+      const catchTop = H - ch - 6;
+      for (let i = S.items.length - 1; i >= 0; i--) {
+        const f = S.items[i];
+        f.y += f.vy * dt;
+        const px = f.x * W, py = f.y * H;
+        f.el.style.transform = 'translate(' + (px - f.size / 2) + 'px,' + py + 'px)';
+        const fBottom = py + f.size;
+        const fCx = px;
+
+        const inCatchY = fBottom >= catchTop && fBottom <= catchTop + ch * 0.75;
+        const inCatchX = Math.abs(fCx - catCx) < cw * 0.5 + f.size * 0.25;
+
+        if (inCatchY && inCatchX) {
+          if (f.type === 'dog') { hitDog(f, f.x); if (!S.running) return; }
+          else if (f.type === 'golden') { bumpCombo(); addScore(50, f.x, f.y, 'mega'); sfx.golden(); removeFaller(f); }
+          else { bumpCombo(); addScore(10, f.x, f.y, ''); sfx.catch(); removeFaller(f); }
+        } else if (py > H + 10) {
+          if (f.type === 'tuna' || f.type === 'golden') { breakCombo(); sfx.miss(); }
+          removeFaller(f);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // ---- input ----
+    let keyState = {};
+    function setTargetFromClient(clientX) {
+      const r = wrap.getBoundingClientRect();
+      S.targetX = Math.max(0.05, Math.min(0.95, (clientX - r.left) / r.width));
+    }
+    wrap.addEventListener('pointerdown', e => {
+      setTargetFromClient(e.clientX);
+      wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
+    });
+    wrap.addEventListener('pointermove', e => {
+      if (e.pointerType === 'mouse' && e.buttons === 0) { setTargetFromClient(e.clientX); return; }
+      setTargetFromClient(e.clientX);
+    });
+    window.addEventListener('keydown', e => {
+      if (!S.running || S.paused) return;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { S.targetX = Math.max(0.05, S.targetX - 0.06); e.preventDefault(); }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { S.targetX = Math.min(0.95, S.targetX + 0.06); e.preventDefault(); }
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') pauseGame();
+    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('againBtn').addEventListener('click', startGame);
+    document.getElementById('resumeBtn').addEventListener('click', resumeGame);
+
+    window.addEventListener('resize', () => { measure(); if (S.running) layoutCat(); });
+    measure();
+    layoutCat();
+  </script>
+</body>
+</html>
