@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>YARN BREAKER — Samson Arcade</title>
-  <meta name="description" content="YARN BREAKER: Breakout, cat-ified. Bat the yarn ball with the cat paddle, smash the treat bricks, clear every level. 3 lives, best score wins." />
+  <meta name="description" content="YARN BREAKER: Breakout, cat-ified. Bat the yarn ball with the cat paddle, smash the treat bricks, clear every level. 3 lives, best score wins. Power-ups drop from bricks: multi-ball, wide paddle, laser, slow ball, extra life." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -124,7 +124,7 @@
       <p class="over-sub">the cat is the paddle. the yarn is the ball.<br />
       smash every treat brick to clear the level.<br />
       <span class="t">gold bricks</span> pay <b>50</b>, tuna pays <b>30</b>, fish pays <b>20</b>, yarn pays <b>10</b>.<br />
-      lose the yarn, lose a life — you get <span class="r">3</span>. each level gets faster.</p>
+      lose the yarn, lose a life — you get <span class="r">3</span>. each level gets faster.<br />bricks sometimes drop <b>power-ups</b>: <span class="t">multi-ball</span>, <span class="t">wide paws</span>, <span class="t">laser cats</span>, <span class="t">slow yarn</span>, <span class="t">extra life</span>.</p>
       <button class="bigbtn" id="startBtn">▶ PLAY</button>
       <p class="over-sub" style="font-size:0.78rem">best: <b id="menuBest">—</b></p>
     </div>
@@ -145,7 +145,7 @@
     </div>
   </div>
 
-  <p class="hint">drag or move your mouse to slide the cat · <b>← →</b> keys work too · tap / click / space to launch</p>
+  <p class="hint">drag or move your mouse to slide the cat · <b>← →</b> keys work too · tap / click / space to launch · tap / space fires lasers when active</p>
   <footer>the cats deny everything · <a href="../">samson arcade</a></footer>
 
   <script>
@@ -178,7 +178,13 @@
     var score = 0, level = 1, lives = 3, best = 0;
     var state = 'menu'; // menu | ready | playing | paused | over
     var paddle = { w: 96, h: 18, x: W / 2 - 48, y: H - 44, speed: 9 };
-    var ball = { r: 9, x: W / 2, y: 0, dx: 0, dy: 0, speed: 5.2, stuck: true };
+    var basePaddleW = 96;
+    var ballSpeed = 5.2;
+    var balls = [];      // active yarn balls (multi-ball grows this)
+    var powerups = [];   // falling capsules
+    var bolts = [];      // laser bolts
+    var wideUntil = 0, laserUntil = 0, slowUntil = 0; // effect expiry (ms)
+    var lastFire = 0;
     var bricks = [];
     var keys = {};
     var raf = null, lastTs = 0;
@@ -238,28 +244,94 @@
             color: def.color, dark: def.dark, pts: def.pts, hp: hp, maxHp: hp, label: def.label });
         }
       }
-      ball.speed = 5.2 + (n - 1) * 0.55;
-      paddle.w = Math.max(64, 96 - (n - 1) * 6);
+      ballSpeed = 5.2 + (n - 1) * 0.55;
+      basePaddleW = Math.max(64, 96 - (n - 1) * 6);
+      paddle.w = basePaddleW;
       paddle.x = W / 2 - paddle.w / 2;
+      powerups = []; bolts = [];
+      wideUntil = laserUntil = slowUntil = 0;
       stickBall();
     }
 
+    function newBall() {
+      return { r: 9, x: W / 2, y: 0, dx: 0, dy: 0, speed: ballSpeed, stuck: true };
+    }
+
     function stickBall() {
-      ball.stuck = true;
-      ball.x = paddle.x + paddle.w / 2;
-      ball.y = paddle.y - ball.r - 2;
-      ball.dx = 0; ball.dy = 0;
+      balls = [newBall()];
+      var b = balls[0];
+      b.x = paddle.x + paddle.w / 2;
+      b.y = paddle.y - b.r - 2;
       canvas.classList.add('idle');
     }
 
     function launchBall() {
-      if (!ball.stuck) return;
+      var b = balls[0];
+      if (!b || !b.stuck) return;
       var angle = (Math.random() * 0.6 - 0.3) - Math.PI / 2; // mostly straight up
-      ball.dx = Math.cos(angle) * ball.speed;
-      ball.dy = Math.sin(angle) * ball.speed;
-      ball.stuck = false;
+      var sp = ballSpeed * (Date.now() < slowUntil ? 0.7 : 1);
+      b.dx = Math.cos(angle) * sp;
+      b.dy = Math.sin(angle) * sp;
+      b.stuck = false;
       canvas.classList.remove('idle');
       sfx.paddle();
+    }
+
+    // ---- power-ups: capsules drop from smashed bricks ----
+    var POWER_TYPES = [
+      { key: 'M', name: 'MULTI-BALL', color: '#ffd23f' },
+      { key: 'W', name: 'WIDE PAWS', color: '#4fd1c5' },
+      { key: 'L', name: 'LASER CATS', color: '#ff5d5d' },
+      { key: 'S', name: 'SLOW YARN', color: '#b983ff' },
+      { key: '+', name: 'EXTRA LIFE', color: '#7ee081' }
+    ];
+    function maybeDrop(b) {
+      if (Math.random() >= 0.25) return; // 1 in 4 bricks drops a capsule
+      var t = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
+      powerups.push({ x: b.x + b.w / 2, y: b.y + b.h / 2, type: t, vy: 2.2 });
+    }
+    function applyPower(t) {
+      var now = Date.now();
+      if (t.key === 'M') {
+        balls.slice().forEach(function (b) {
+          if (balls.length >= 5 || b.stuck) return;
+          var ang = Math.atan2(b.dy, b.dx) + (Math.random() < 0.5 ? 0.45 : -0.45);
+          var sp = Math.hypot(b.dx, b.dy);
+          var nb = { r: b.r, x: b.x, y: b.y, dx: Math.cos(ang) * sp, dy: Math.sin(ang) * sp,
+                     speed: b.speed, stuck: false };
+          if (nb.dy > -1) nb.dy = -Math.abs(nb.dy); // keep the new ball moving up-ish
+          balls.push(nb);
+        });
+        setToast('<b>MULTI-BALL!</b> the yarn has multiplied.');
+      } else if (t.key === 'W') {
+        paddle.w = Math.min(170, Math.round(basePaddleW * 1.6));
+        paddle.x = Math.max(4, Math.min(W - paddle.w - 4, paddle.x));
+        wideUntil = now + 12000;
+        setToast('<b>WIDE PAWS!</b> big cat energy for 12 seconds.');
+      } else if (t.key === 'L') {
+        laserUntil = now + 12000;
+        setToast('<b>LASER CATS!</b> tap or press space to fire.');
+      } else if (t.key === 'S') {
+        if (!slowUntil) {
+          balls.forEach(function (b) { if (!b.stuck) { b.dx *= 0.7; b.dy *= 0.7; } });
+        }
+        slowUntil = now + 8000;
+        setToast('<b>SLOW YARN!</b> everything drifts for 8 seconds.');
+      } else if (t.key === '+') {
+        lives = Math.min(lives + 1, 5);
+        livesEl.textContent = '♥'.repeat(lives);
+        setToast('<b>EXTRA LIFE!</b> the cat has ' + lives + ' now.');
+      }
+      beep(990, 0.1, 'triangle', 0.09); beep(1320, 0.12, 'triangle', 0.09, 0.08);
+    }
+    function fireLaser() {
+      var now = Date.now();
+      if (now < laserUntil && now - lastFire > 220 && bolts.length < 4) {
+        lastFire = now;
+        bolts.push({ x: paddle.x + 14, y: paddle.y - 6 });
+        bolts.push({ x: paddle.x + paddle.w - 14, y: paddle.y - 6 });
+        beep(1400, 0.05, 'square', 0.06);
+      }
     }
 
     function setToast(html) { toastEl.innerHTML = html; }
@@ -293,13 +365,35 @@
     }
 
     function drawBall() {
+      balls.forEach(function (ball) {
+        ctx.save();
+        ctx.fillStyle = '#ff5d5d';
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#a02c2c';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r - 2.5, 0.4, 2.4); ctx.stroke();
+        ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r - 2.5, 2.8, 4.6); ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    function drawPowerups() {
+      powerups.forEach(function (p) {
+        ctx.save();
+        ctx.fillStyle = p.type.color;
+        ctx.beginPath(); ctx.roundRect(p.x - 13, p.y - 9, 26, 18, 6); ctx.fill();
+        ctx.fillStyle = '#14131f';
+        ctx.font = 'bold 12px Bungee, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(p.type.key, p.x, p.y + 1);
+        ctx.restore();
+      });
+    }
+
+    function drawBolts() {
       ctx.save();
-      ctx.fillStyle = '#ff5d5d';
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#a02c2c';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r - 2.5, 0.4, 2.4); ctx.stroke();
-      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r - 2.5, 2.8, 4.6); ctx.stroke();
+      ctx.fillStyle = '#ffd23f';
+      bolts.forEach(function (b) { ctx.fillRect(b.x - 2, b.y - 10, 4, 12); });
       ctx.restore();
     }
 
@@ -338,6 +432,8 @@
         ctx.fillRect(sx, sy, 2, 2);
       }
       drawBricks();
+      drawPowerups();
+      drawBolts();
       drawPaddle();
       drawBall();
       ctx.restore();
@@ -350,60 +446,120 @@
       if (keys.ArrowRight || keys.d) paddle.x += paddle.speed;
       paddle.x = Math.max(4, Math.min(W - paddle.w - 4, paddle.x));
 
-      if (ball.stuck) {
-        ball.x = paddle.x + paddle.w / 2;
-        ball.y = paddle.y - ball.r - 2;
+      // power-up timers
+      var now = Date.now();
+      if (wideUntil && now > wideUntil) {
+        paddle.w = basePaddleW;
+        paddle.x = Math.max(4, Math.min(W - paddle.w - 4, paddle.x));
+        wideUntil = 0;
+      }
+      if (laserUntil && now > laserUntil) laserUntil = 0;
+      if (slowUntil && now > slowUntil) {
+        balls.forEach(function (b) { if (!b.stuck) { b.dx /= 0.7; b.dy /= 0.7; } });
+        slowUntil = 0;
+      }
+
+      if (balls.length && balls[0].stuck) {
+        balls[0].x = paddle.x + paddle.w / 2;
+        balls[0].y = paddle.y - balls[0].r - 2;
         return;
       }
 
-      ball.x += ball.dx * dt;
-      ball.y += ball.dy * dt;
+      // balls
+      for (var bi = balls.length - 1; bi >= 0; bi--) {
+        var ball = balls[bi];
+        if (ball.stuck) continue;
+        ball.x += ball.dx * dt;
+        ball.y += ball.dy * dt;
 
-      // walls
-      if (ball.x - ball.r < 4) { ball.x = 4 + ball.r; ball.dx = Math.abs(ball.dx); }
-      if (ball.x + ball.r > W - 4) { ball.x = W - 4 - ball.r; ball.dx = -Math.abs(ball.dx); }
-      if (ball.y - ball.r < 4) { ball.y = 4 + ball.r; ball.dy = Math.abs(ball.dy); }
+        // walls
+        if (ball.x - ball.r < 4) { ball.x = 4 + ball.r; ball.dx = Math.abs(ball.dx); }
+        if (ball.x + ball.r > W - 4) { ball.x = W - 4 - ball.r; ball.dx = -Math.abs(ball.dx); }
+        if (ball.y - ball.r < 4) { ball.y = 4 + ball.r; ball.dy = Math.abs(ball.dy); }
 
-      // paddle
-      if (ball.dy > 0 && ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h + 8 &&
-          ball.x >= paddle.x - ball.r && ball.x <= paddle.x + paddle.w + ball.r) {
-        var hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2); // -1..1
-        var maxAngle = Math.PI / 3;
-        var angle = hit * maxAngle - Math.PI / 2;
-        var sp = Math.hypot(ball.dx, ball.dy);
-        ball.dx = Math.cos(angle) * sp;
-        ball.dy = Math.sin(angle) * sp;
-        ball.y = paddle.y - ball.r - 1;
-        sfx.paddle();
+        // paddle
+        if (ball.dy > 0 && ball.y + ball.r >= paddle.y && ball.y + ball.r <= paddle.y + paddle.h + 8 &&
+            ball.x >= paddle.x - ball.r && ball.x <= paddle.x + paddle.w + ball.r) {
+          var hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2); // -1..1
+          var maxAngle = Math.PI / 3;
+          var angle = hit * maxAngle - Math.PI / 2;
+          var sp = Math.hypot(ball.dx, ball.dy);
+          ball.dx = Math.cos(angle) * sp;
+          ball.dy = Math.sin(angle) * sp;
+          ball.y = paddle.y - ball.r - 1;
+          sfx.paddle();
+        }
+
+        // bricks
+        for (var i = 0; i < bricks.length; i++) {
+          var b = bricks[i];
+          if (b.hp <= 0) continue;
+          if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
+              ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
+            var overlapL = (ball.x + ball.r) - b.x;
+            var overlapR = (b.x + b.w) - (ball.x - ball.r);
+            var overlapT = (ball.y + ball.r) - b.y;
+            var overlapB = (b.y + b.h) - (ball.y - ball.r);
+            var minX = Math.min(overlapL, overlapR), minY = Math.min(overlapT, overlapB);
+            if (minX < minY) { ball.dx = overlapL < overlapR ? -Math.abs(ball.dx) : Math.abs(ball.dx); }
+            else { ball.dy = overlapT < overlapB ? -Math.abs(ball.dy) : Math.abs(ball.dy); }
+            b.hp--;
+            if (b.hp <= 0) {
+              score += b.pts;
+              scoreEl.textContent = score;
+              if (b.pts >= 50) sfx.gold(); else sfx.brick();
+              maybeDrop(b);
+            } else {
+              sfx.brick();
+            }
+            break; // one brick per ball per frame
+          }
+        }
+
+        // fell below — this ball is gone; a life is lost only when no balls remain
+        if (ball.y - ball.r > H) { balls.splice(bi, 1); continue; }
       }
 
-      // bricks
-      for (var i = 0; i < bricks.length; i++) {
-        var b = bricks[i];
-        if (b.hp <= 0) continue;
-        if (ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
-            ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
-          var overlapL = (ball.x + ball.r) - b.x;
-          var overlapR = (b.x + b.w) - (ball.x - ball.r);
-          var overlapT = (ball.y + ball.r) - b.y;
-          var overlapB = (b.y + b.h) - (ball.y - ball.r);
-          var minX = Math.min(overlapL, overlapR), minY = Math.min(overlapT, overlapB);
-          if (minX < minY) { ball.dx = overlapL < overlapR ? -Math.abs(ball.dx) : Math.abs(ball.dx); }
-          else { ball.dy = overlapT < overlapB ? -Math.abs(ball.dy) : Math.abs(ball.dy); }
-          b.hp--;
-          if (b.hp <= 0) {
-            score += b.pts;
-            scoreEl.textContent = score;
-            if (b.pts >= 50) sfx.gold(); else sfx.brick();
-          } else {
-            sfx.brick();
-          }
-          break; // one brick per frame
+      if (balls.length === 0) { loseLife(); return; }
+
+      // falling power-up capsules
+      for (var pi = powerups.length - 1; pi >= 0; pi--) {
+        var p = powerups[pi];
+        p.y += p.vy * dt;
+        if (p.y > paddle.y - 6 && p.y < paddle.y + paddle.h + 14 &&
+            p.x >= paddle.x - 8 && p.x <= paddle.x + paddle.w + 8) {
+          applyPower(p.type);
+          powerups.splice(pi, 1);
+        } else if (p.y > H + 14) {
+          powerups.splice(pi, 1);
         }
       }
 
-      // fell below
-      if (ball.y - ball.r > H) loseLife();
+      // laser bolts
+      for (var qi = bolts.length - 1; qi >= 0; qi--) {
+        var bolt = bolts[qi];
+        bolt.y -= 11 * dt;
+        var boltHit = false;
+        for (var j = 0; j < bricks.length; j++) {
+          var br = bricks[j];
+          if (br.hp <= 0) continue;
+          if (bolt.x >= br.x - 2 && bolt.x <= br.x + br.w + 2 &&
+              bolt.y >= br.y - 8 && bolt.y <= br.y + br.h + 8) {
+            br.hp--;
+            if (br.hp <= 0) {
+              score += br.pts;
+              scoreEl.textContent = score;
+              if (br.pts >= 50) sfx.gold(); else sfx.brick();
+              maybeDrop(br);
+            } else {
+              sfx.brick();
+            }
+            boltHit = true;
+            break;
+          }
+        }
+        if (boltHit || bolt.y < 0) bolts.splice(qi, 1);
+      }
 
       // level cleared?
       if (bricks.every(function (b) { return b.hp <= 0; })) {
@@ -504,7 +660,7 @@
       dragging = true;
       paddle.x = Math.max(4, Math.min(W - paddle.w - 4, canvasX(e.clientX) - paddle.w / 2));
       if (state === 'ready') { state = 'playing'; launchBall(); startLoop(); }
-      else if (state === 'playing' && ball.stuck) { launchBall(); }
+      else if (state === 'playing') { if (balls[0] && balls[0].stuck) launchBall(); else fireLaser(); }
       draw();
     });
     canvas.addEventListener('pointermove', function (e) {
@@ -521,7 +677,7 @@
       if (e.key === ' ' || e.key === 'ArrowUp') {
         e.preventDefault();
         if (state === 'ready') { state = 'playing'; launchBall(); startLoop(); }
-        else if (state === 'playing' && ball.stuck) launchBall();
+        else if (state === 'playing') { if (balls[0] && balls[0].stuck) launchBall(); else fireLaser(); }
       }
       if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') togglePause();
       keys[e.key] = true;
