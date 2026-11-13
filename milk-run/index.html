@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MILK RUN — Samson Arcade</title>
+  <meta name="description" content="MILK RUN: an endless runner, cat-ified. Sprint through the midnight kitchen, leap the vacuums and puddles, snatch the milk bowls and fish. 3 lives, best distance wins." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem;
+    }
+    h1, .hud b, .bigbtn, .over-title { font-family: 'Bungee', cursive; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--teal); }
+    header .hero { height: 84px; margin-bottom: 0.3rem; mix-blend-mode: screen; image-rendering: pixelated; }
+
+    #stage { width: 100%; max-width: 560px; background: var(--panel); border: 4px solid var(--line);
+      border-radius: 18px; padding: 1rem; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; touch-action: none; position: relative; }
+
+    .hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9rem; padding: 0 0.2rem; }
+    .hud .cell { font-size: 0.72rem; letter-spacing: 0.14em; color: var(--ink-soft); font-weight: 800; }
+    .hud b { display: block; font-size: 1.35rem; color: var(--ink); letter-spacing: 0.04em; }
+    .hud .cell.score b { color: var(--gold); }
+    .hud .cell.dist b { color: var(--teal); }
+    .hud .cell.lives b { color: var(--red); }
+    .hud .cell.best b { color: var(--ink); }
+
+    #game { display: block; width: 100%; height: auto; background: #0e0d18;
+      border: 3px solid var(--line); border-radius: 12px; touch-action: none; cursor: pointer; }
+
+    .underboard { display: flex; justify-content: space-between; align-items: center; margin-top: 0.9rem; gap: 0.6rem; }
+    #toast { flex: 1; color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; min-height: 1.2em; }
+    #toast b { color: var(--gold); }
+    #toast .t { color: var(--teal); }
+    .pausebtn {
+      font-family: 'Bungee', cursive; font-size: 0.8rem; letter-spacing: 0.05em;
+      background: var(--line); color: var(--ink); border: none; border-radius: 10px;
+      padding: 0.55rem 1rem; cursor: pointer;
+    }
+    .pausebtn:active { transform: translateY(2px); }
+
+    .overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      background: rgba(14, 13, 24, 0.94); text-align: center; padding: 1.5rem; z-index: 10;
+      border-radius: 14px;
+    }
+    .overlay.hidden { display: none; }
+    .over-title { font-size: clamp(1.4rem, 5.5vw, 2rem); color: var(--gold); letter-spacing: 0.04em; }
+    .over-title .red { color: var(--red); }
+    .over-sub { color: var(--ink-soft); font-weight: 700; font-size: 0.92rem; max-width: 330px; line-height: 1.55; }
+    .over-sub b { color: var(--gold); }
+    .over-sub .r { color: var(--red); font-weight: 800; }
+    .over-sub .t { color: var(--teal); font-weight: 800; }
+    .bigbtn {
+      font-size: 1rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.85rem 2rem; cursor: pointer; font-family: 'Bungee', cursive;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .bigbtn.alt { background: var(--teal); box-shadow: 0 4px 0 #2c7a73; }
+    .bigbtn.alt:active { box-shadow: 0 1px 0 #2c7a73; }
+    .quip { color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; font-style: italic; }
+    .newbest { color: var(--gold); font-family: 'Bungee', cursive; font-size: 0.9rem; letter-spacing: 0.08em;
+      animation: blink 0.7s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0.35; } }
+    .newbest.hidden { display: none; }
+
+    .hint { margin-top: 1rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    .hint b { color: var(--gold); }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <img class="hero" src="../assets/images/milk/hero.webp" alt="A pixel orange cat sprinting" />
+    <h1><span class="star">★</span> MILK RUN <span class="star">★</span></h1>
+    <p>an endless runner, cat-ified. midnight kitchen, <b>one hungry cat.</b></p>
+  </header>
+
+  <div id="stage">
+    <div class="hud">
+      <div class="cell score">SCORE<b id="score">0</b></div>
+      <div class="cell dist">DISTANCE<b id="dist">0m</b></div>
+      <div class="cell lives">LIVES<b id="lives">♥♥♥</b></div>
+      <div class="cell best">BEST<b id="best">0</b></div>
+    </div>
+    <canvas id="game" width="600" height="340"></canvas>
+    <div class="underboard">
+      <div id="toast">tap, click, or space to jump. hold for a higher leap.</div>
+      <button class="pausebtn" id="pauseBtn">⏸ PAUSE</button>
+    </div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="over-title">MILK RUN</div>
+      <p class="over-sub">the cat is out past bedtime and the kitchen is full of milk.<br />
+      jump the <span class="r">vacuums</span>, the <span class="t">puddles</span> and the <span class="r">boxes</span> —<br />
+      grab <b>milk +10</b>, <span class="t">fish +25</span>, and rare <b>golden milk +50</b>.<br />
+      you get <span class="r">3 lives</span>. the kitchen only gets faster.</p>
+      <button class="bigbtn" id="startBtn">▶ RUN</button>
+      <p class="over-sub" style="font-size:0.78rem">best: <b id="menuBest">—</b></p>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <div class="over-title"><span class="red">THE CAT GOT CAUGHT!</span></div>
+      <p class="over-sub">final score: <b id="finalScore">0</b> · distance: <b id="finalDist">0m</b></p>
+      <p class="over-sub" style="font-size:0.8rem">best: <b id="finalBest">—</b></p>
+      <p class="quip" id="quip"></p>
+      <p class="newbest hidden" id="newBest">★ NEW BEST ★</p>
+      <button class="bigbtn alt" id="againBtn">↻ RUN AGAIN</button>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <div class="over-title">PAWS-ED</div>
+      <p class="over-sub">the milk waits. the vacuum does not.</p>
+      <button class="bigbtn" id="resumeBtn">▶ RESUME</button>
+    </div>
+  </div>
+
+  <p class="hint">tap / click / <b>space</b> to jump — hold for a higher leap · <b>P</b> pauses</p>
+  <footer>the cats deny everything · <a href="../">samson arcade</a></footer>
+
+  <script>
+    'use strict';
+    var W = 600, H = 340, GROUND = 292;
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+    var distEl = document.getElementById('dist');
+    var livesEl = document.getElementById('lives');
+    var bestEl = document.getElementById('best');
+    var toastEl = document.getElementById('toast');
+    var pauseBtn = document.getElementById('pauseBtn');
+    var startOverlay = document.getElementById('startOverlay');
+    var overOverlay = document.getElementById('overOverlay');
+    var pauseOverlay = document.getElementById('pauseOverlay');
+    var menuBest = document.getElementById('menuBest');
+
+    var QUIPS = [
+      'the vacuum sends its regards.',
+      'the milk was right there. so close.',
+      'somewhere, a cardboard box is empty.',
+      'the cat blames the puddle. the puddle says nothing.',
+      'a valiant sprint. the kitchen disagrees.',
+      'the cats have already forgotten this run.'
+    ];
+    var BEST_KEY = 'milkRunBest';
+
+    var score = 0, dist = 0, lives = 3, best = 0;
+    var state = 'menu'; // menu | playing | paused | over
+    var speed = 5, spawnTimer = 0, elapsed = 0;
+    var obstacles = [], pickups = [], particles = [];
+    var invulnUntil = 0, flash = 0;
+    var cat = { x: 96, y: GROUND, w: 52, h: 34, vy: 0, grounded: true, runPhase: 0 };
+    var GRAV = 0.75, JUMP_V = -13.2;
+    var bgOff = 0; // parallax offset
+    var raf = null, lastTs = 0;
+
+    try { best = JSON.parse(localStorage.getItem(BEST_KEY) || '0') || 0; } catch (e) { best = 0; }
+    bestEl.textContent = best;
+    menuBest.textContent = best > 0 ? String(best) : '—';
+
+    // ---- audio: tiny synth bleeps ----
+    var AC = null;
+    function audio() {
+      if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+      if (AC && AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function beep(freq, dur, type, vol, when) {
+      var ac = audio(); if (!ac) return;
+      var o = ac.createOscillator(), g = ac.createGain();
+      var t = ac.currentTime + (when || 0);
+      o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(vol || 0.07, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    }
+    var sfx = {
+      jump: function () { beep(280, 0.09, 'square', 0.06); beep(440, 0.08, 'square', 0.05, 0.05); },
+      milk: function () { beep(660, 0.07, 'triangle', 0.08); beep(880, 0.09, 'triangle', 0.07, 0.05); },
+      gold: function () { [880, 1108, 1318, 1760].forEach(function (f, i) { beep(f, 0.1, 'triangle', 0.09, i * 0.06); }); },
+      hit: function () { beep(220, 0.2, 'sawtooth', 0.09); beep(147, 0.3, 'sawtooth', 0.09, 0.14); },
+      over: function () { [392, 330, 262, 196].forEach(function (f, i) { beep(f, 0.18, 'triangle', 0.09, i * 0.16); }); }
+    };
+
+    function setToast(html) { toastEl.innerHTML = html; }
+
+    // ---- spawning ----
+    var OB_TYPES = [
+      { kind: 'vacuum', w: 46, h: 62, minGap: 340 },
+      { kind: 'puddle', w: 78, h: 12, minGap: 300 },
+      { kind: 'box', w: 44, h: 44, minGap: 320 }
+    ];
+    function spawnObstacle() {
+      var t = OB_TYPES[Math.floor(Math.random() * OB_TYPES.length)];
+      obstacles.push({ kind: t.kind, x: W + 20, y: GROUND - t.h, w: t.w, h: t.h });
+    }
+    function spawnPickup() {
+      var roll = Math.random();
+      var kind = roll < 0.08 ? 'gold' : (roll < 0.38 ? 'fish' : 'milk');
+      var pts = kind === 'gold' ? 50 : (kind === 'fish' ? 25 : 10);
+      // milk low (easy grab), fish mid-air (jump), gold high (full jump)
+      var y = kind === 'milk' ? GROUND - 34 : (kind === 'fish' ? GROUND - 78 : GROUND - 118);
+      pickups.push({ kind: kind, pts: pts, x: W + 20, y: y, w: 30, h: 26, bob: Math.random() * 6.28 });
+    }
+
+    function resetGame() {
+      score = 0; dist = 0; lives = 3; speed = 5; elapsed = 0; scoreBonus = 0;
+      obstacles = []; pickups = []; particles = [];
+      spawnTimer = 50;
+      cat.y = GROUND; cat.vy = 0; cat.grounded = true;
+      scoreEl.textContent = '0';
+      distEl.textContent = '0m';
+      livesEl.textContent = '♥♥♥';
+      startOverlay.classList.add('hidden');
+      overOverlay.classList.add('hidden');
+      pauseOverlay.classList.add('hidden');
+      pauseBtn.textContent = '⏸ PAUSE';
+      setToast('tap, click, or space to jump. hold for a higher leap.');
+      state = 'playing';
+      audio();
+      draw();
+      startLoop();
+    }
+
+    function gameOver() {
+      state = 'over';
+      sfx.over();
+      var isBest = score > best;
+      if (isBest) {
+        best = score;
+        try { localStorage.setItem(BEST_KEY, JSON.stringify(best)); } catch (e) {}
+      }
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalDist').textContent = Math.floor(dist) + 'm';
+      document.getElementById('finalBest').textContent = best;
+      document.getElementById('quip').textContent = QUIPS[Math.floor(Math.random() * QUIPS.length)];
+      document.getElementById('newBest').classList.toggle('hidden', !isBest);
+      bestEl.textContent = best;
+      menuBest.textContent = String(best);
+      overOverlay.classList.remove('hidden');
+    }
+
+    function togglePause() {
+      if (state === 'playing') {
+        state = 'paused';
+        pauseOverlay.classList.remove('hidden');
+        pauseBtn.textContent = '▶ RESUME';
+      } else if (state === 'paused') {
+        state = 'playing';
+        pauseOverlay.classList.add('hidden');
+        pauseBtn.textContent = '⏸ PAUSE';
+        startLoop();
+      }
+    }
+
+    // ---- input: tap / click / space to jump (hold = higher) ----
+    var jumpHeld = false;
+    function doJump() {
+      if (state !== 'playing') return;
+      if (!cat.grounded) return;
+      cat.vy = JUMP_V;
+      cat.grounded = false;
+      jumpHeld = true;
+      sfx.jump();
+    }
+    function endJump() {
+      jumpHeld = false;
+      if (!cat.grounded && cat.vy < -5) cat.vy = -5; // short hop on early release
+    }
+    canvas.addEventListener('pointerdown', function (e) { e.preventDefault(); doJump(); });
+    window.addEventListener('pointerup', endJump);
+    window.addEventListener('pointercancel', endJump);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === ' ' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!e.repeat) doJump();
+      }
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') togglePause();
+    });
+    document.addEventListener('keyup', function (e) {
+      if (e.key === ' ' || e.key === 'ArrowUp') endJump();
+    });
+
+    document.getElementById('startBtn').addEventListener('click', resetGame);
+    document.getElementById('againBtn').addEventListener('click', resetGame);
+    document.getElementById('resumeBtn').addEventListener('click', togglePause);
+    pauseBtn.addEventListener('click', togglePause);
+
+    // ---- collision helpers ----
+    function overlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+    function catBox() {
+      return { x: cat.x + 6, y: cat.y - cat.h + 4, w: cat.w - 12, h: cat.h - 6 };
+    }
+    function burst(x, y, color, n) {
+      for (var i = 0; i < n; i++) {
+        particles.push({ x: x, y: y, vx: (Math.random() - 0.5) * 5, vy: -Math.random() * 4 - 1,
+          life: 22 + Math.random() * 10, color: color });
+      }
+    }
+
+    // ---- physics ----
+    function step(dt) {
+      elapsed += dt / 60;
+      speed = Math.min(5 + elapsed * 0.09, 11.5);
+      bgOff += speed * dt * 0.5;
+      dist += (speed * dt) / 10;
+      score = Math.floor(dist) + scoreBonus;
+      scoreEl.textContent = score;
+      distEl.textContent = Math.floor(dist) + 'm';
+
+      // cat physics
+      cat.vy += GRAV * dt;
+      cat.y += cat.vy * dt;
+      if (cat.y >= GROUND) { cat.y = GROUND; cat.vy = 0; cat.grounded = true; }
+      if (cat.grounded) cat.runPhase += 0.28 * dt * (speed / 5);
+
+      // spawning
+      spawnTimer -= speed * dt;
+      if (spawnTimer <= 0) {
+        var lastOb = obstacles.length ? obstacles[obstacles.length - 1] : null;
+        var gap = 300 + Math.random() * 260 - Math.min(speed * 8, 120);
+        if (!lastOb || (W + 20 - lastOb.x) > 0) {
+          spawnObstacle();
+          if (Math.random() < 0.75) spawnPickup();
+          spawnTimer = gap;
+        }
+      }
+
+      // obstacles
+      for (var i = obstacles.length - 1; i >= 0; i--) {
+        var ob = obstacles[i];
+        ob.x -= speed * dt;
+        if (ob.x + ob.w < -20) { obstacles.splice(i, 1); continue; }
+        if (Date.now() > invulnUntil && overlap(catBox(), { x: ob.x + 4, y: ob.y + 3, w: ob.w - 8, h: ob.h - 3 })) {
+          lives--;
+          livesEl.textContent = '♥'.repeat(Math.max(lives, 0)) || '—';
+          flash = 12;
+          invulnUntil = Date.now() + 1400;
+          burst(cat.x + cat.w / 2, cat.y - cat.h / 2, '#ff5d5d', 14);
+          if (lives <= 0) { gameOver(); return; }
+          sfx.hit();
+          setToast('ouch! <b>' + lives + (lives === 1 ? ' life' : ' lives') + ' left.</b> keep running!');
+          obstacles.splice(i, 1);
+        }
+      }
+
+      // pickups
+      for (var j = pickups.length - 1; j >= 0; j--) {
+        var p = pickups[j];
+        p.x -= speed * dt;
+        p.bob += 0.08 * dt;
+        if (p.x + p.w < -20) { pickups.splice(j, 1); continue; }
+        var py = p.y + Math.sin(p.bob) * 3;
+        if (overlap(catBox(), { x: p.x, y: py, w: p.w, h: p.h })) {
+          scoreBonus += p.pts;
+          burst(p.x + p.w / 2, py + p.h / 2, p.kind === 'gold' ? '#ffd23f' : (p.kind === 'fish' ? '#4fd1c5' : '#f5f0e6'), 10);
+          if (p.kind === 'gold') { sfx.gold(); setToast('<b>GOLDEN MILK! +50</b> the cat is royalty now.'); }
+          else if (p.kind === 'fish') { sfx.milk(); setToast('<b>fish! +25</b> crunchy.'); }
+          else { sfx.milk(); setToast('<b>milk! +10</b> slurp.'); }
+          pickups.splice(j, 1);
+        }
+      }
+
+      // particles
+      for (var k = particles.length - 1; k >= 0; k--) {
+        var pt = particles[k];
+        pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += 0.2 * dt; pt.life -= dt;
+        if (pt.life <= 0) particles.splice(k, 1);
+      }
+      if (flash > 0) flash -= 1;
+    }
+    var scoreBonus = 0;
+
+    // ---- drawing ----
+    function drawBackground() {
+      // night sky
+      var grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#171628');
+      grad.addColorStop(0.75, '#0e0d18');
+      grad.addColorStop(1, '#0e0d18');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      // stars
+      ctx.fillStyle = '#56548a';
+      for (var i = 0; i < 30; i++) {
+        var sx = (i * 97 + 40) % W, sy = (i * 61) % 120;
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+      // moon
+      ctx.fillStyle = '#ffd23f';
+      ctx.beginPath(); ctx.arc(512, 52, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8b92a';
+      ctx.beginPath(); ctx.arc(504, 46, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(520, 58, 4, 0, Math.PI * 2); ctx.fill();
+      // window (parallax slow)
+      var wx = 120 - (bgOff * 0.15 % 600);
+      ctx.fillStyle = '#1d1c2e';
+      ctx.fillRect(wx, 40, 130, 110);
+      ctx.strokeStyle = '#2e2c4a'; ctx.lineWidth = 4;
+      ctx.strokeRect(wx, 40, 130, 110);
+      ctx.beginPath(); ctx.moveTo(wx + 65, 40); ctx.lineTo(wx + 65, 150); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(wx, 95); ctx.lineTo(wx + 130, 95); ctx.stroke();
+      // kitchen counter silhouette (parallax mid)
+      ctx.fillStyle = '#171628';
+      var cx = -((bgOff * 0.4) % 140);
+      for (var x = cx; x < W + 140; x += 140) {
+        ctx.fillRect(x, 190, 96, 10);
+        ctx.fillRect(x + 8, 200, 80, 6);
+        // little jars on the counter
+        ctx.fillRect(x + 14, 172, 14, 18);
+        ctx.fillRect(x + 52, 178, 18, 12);
+      }
+      // floor
+      ctx.fillStyle = '#12111d';
+      ctx.fillRect(0, GROUND, W, H - GROUND);
+      ctx.fillStyle = '#1d1c2e';
+      var fx = -((bgOff) % 60);
+      for (var tx = fx; tx < W; tx += 60) ctx.fillRect(tx, GROUND + 26, 2, H - GROUND - 26);
+      ctx.fillStyle = '#2e2c4a';
+      ctx.fillRect(0, GROUND, W, 3);
+    }
+
+    function drawCat() {
+      var x = cat.x, top = cat.y - cat.h;
+      var bob = cat.grounded ? Math.sin(cat.runPhase * 2) * 1.5 : 0;
+      var legSwing = cat.grounded ? Math.sin(cat.runPhase * 2) * 5 : 3;
+      ctx.save();
+      if (Date.now() < invulnUntil && Math.floor(Date.now() / 120) % 2 === 0) ctx.globalAlpha = 0.35;
+      // tail
+      ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x + 4, top + 14);
+      ctx.quadraticCurveTo(x - 12, top + 8 + Math.sin(cat.runPhase * 2) * 4, x - 16, top - 2 + Math.sin(cat.runPhase * 2) * 5);
+      ctx.stroke();
+      // back leg
+      ctx.fillStyle = '#d97f06';
+      ctx.fillRect(x + 6, top + 26, 9, 8 + legSwing * 0.4);
+      // body
+      ctx.fillStyle = '#f5a623';
+      ctx.beginPath(); ctx.roundRect(x, top + 6, 44, 22, 8); ctx.fill();
+      // stripes
+      ctx.fillStyle = '#d97f06';
+      ctx.fillRect(x + 12, top + 6, 4, 22);
+      ctx.fillRect(x + 24, top + 6, 4, 22);
+      ctx.fillRect(x + 34, top + 6, 4, 22);
+      // head
+      ctx.fillStyle = '#f5a623';
+      ctx.beginPath(); ctx.roundRect(x + 34, top - 2, 20, 18, 6); ctx.fill();
+      // ears
+      ctx.beginPath();
+      ctx.moveTo(x + 36, top); ctx.lineTo(x + 40, top - 9); ctx.lineTo(x + 46, top); ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 46, top); ctx.lineTo(x + 50, top - 9); ctx.lineTo(x + 54, top); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ff8fa3';
+      ctx.beginPath();
+      ctx.moveTo(x + 39, top - 1); ctx.lineTo(x + 41, top - 6); ctx.lineTo(x + 44, top - 1); ctx.closePath(); ctx.fill();
+      // eye
+      ctx.fillStyle = '#14131f';
+      ctx.beginPath(); ctx.arc(x + 49, top + 6, 2.4, 0, Math.PI * 2); ctx.fill();
+      // nose + mouth
+      ctx.fillStyle = '#ff8fa3';
+      ctx.fillRect(x + 53, top + 10, 3, 2);
+      // front leg (extended while running)
+      ctx.fillStyle = '#f5a623';
+      ctx.fillRect(x + 38, top + 26, 9, 8 + Math.max(0, -legSwing) * 0.5);
+      // whiskers
+      ctx.strokeStyle = 'rgba(245,240,230,0.8)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + 54, top + 8); ctx.lineTo(x + 60, top + 6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 54, top + 12); ctx.lineTo(x + 60, top + 12); ctx.stroke();
+      ctx.restore();
+      void bob;
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(function (ob) {
+        if (ob.kind === 'vacuum') {
+          // upright vacuum: body, hose, wheels, red light
+          ctx.fillStyle = '#c94f4f';
+          ctx.beginPath(); ctx.roundRect(ob.x + 6, ob.y + 8, 26, 44, 6); ctx.fill();
+          ctx.fillStyle = '#8c2f2f';
+          ctx.fillRect(ob.x + 6, ob.y + 40, 26, 6);
+          ctx.fillStyle = '#2e2c4a';
+          ctx.beginPath(); ctx.arc(ob.x + 19, ob.y + 26, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffd23f';
+          ctx.beginPath(); ctx.arc(ob.x + 19, ob.y + 26, 3, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#56548a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(ob.x + 32, ob.y + 12); ctx.quadraticCurveTo(ob.x + 44, ob.y + 26, ob.x + 36, ob.y + 52); ctx.stroke();
+          ctx.fillStyle = '#14131f';
+          ctx.beginPath(); ctx.arc(ob.x + 12, ob.y + ob.h - 4, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(ob.x + 30, ob.y + ob.h - 4, 6, 0, Math.PI * 2); ctx.fill();
+        } else if (ob.kind === 'puddle') {
+          ctx.fillStyle = '#3aa7ff';
+          ctx.beginPath(); ctx.ellipse(ob.x + ob.w / 2, ob.y + 6, ob.w / 2, 6, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#8fd0ff';
+          ctx.beginPath(); ctx.ellipse(ob.x + ob.w / 2 - 12, ob.y + 5, 14, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        } else {
+          // cardboard box with tape
+          ctx.fillStyle = '#b98a4e';
+          ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+          ctx.fillStyle = '#8a652f';
+          ctx.fillRect(ob.x, ob.y, ob.w, 4);
+          ctx.fillRect(ob.x + ob.w / 2 - 3, ob.y, 6, ob.h);
+          ctx.strokeStyle = '#8a652f'; ctx.lineWidth = 2;
+          ctx.strokeRect(ob.x + 1, ob.y + 1, ob.w - 2, ob.h - 2);
+        }
+      });
+    }
+
+    function drawPickups() {
+      pickups.forEach(function (p) {
+        var y = p.y + Math.sin(p.bob) * 3;
+        if (p.kind === 'milk') {
+          ctx.fillStyle = '#f5f0e6';
+          ctx.beginPath(); ctx.ellipse(p.x + 15, y + 18, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(p.x + 2, y + 10, 26, 9);
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath(); ctx.ellipse(p.x + 15, y + 10, 11, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        } else if (p.kind === 'fish') {
+          ctx.fillStyle = '#4fd1c5';
+          ctx.beginPath();
+          ctx.ellipse(p.x + 14, y + 12, 14, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(p.x + 1, y + 12); ctx.lineTo(p.x - 8, y + 4); ctx.lineTo(p.x - 8, y + 20); ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = '#14131f';
+          ctx.beginPath(); ctx.arc(p.x + 22, y + 10, 1.8, 0, Math.PI * 2); ctx.fill();
+        } else {
+          // golden milk: glowing bowl
+          ctx.save();
+          ctx.shadowColor = '#ffd23f'; ctx.shadowBlur = 12;
+          ctx.fillStyle = '#ffd23f';
+          ctx.beginPath(); ctx.ellipse(p.x + 15, y + 18, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(p.x + 2, y + 10, 26, 9);
+          ctx.fillStyle = '#fff3c4';
+          ctx.beginPath(); ctx.ellipse(p.x + 15, y + 10, 11, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+          ctx.fillStyle = '#ffd23f';
+          ctx.font = 'bold 13px Bungee, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('★', p.x + 15, y - 2);
+        }
+      });
+    }
+
+    function drawParticles() {
+      particles.forEach(function (pt) {
+        ctx.globalAlpha = Math.max(pt.life / 30, 0);
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x - 2, pt.y - 2, 4, 4);
+      });
+      ctx.globalAlpha = 1;
+    }
+
+    function draw() {
+      ctx.save();
+      if (flash > 0) {
+        ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+        flash -= 1;
+      }
+      ctx.clearRect(-10, -10, W + 20, H + 20);
+      drawBackground();
+      drawPickups();
+      drawObstacles();
+      drawCat();
+      drawParticles();
+      ctx.restore();
+    }
+
+    function loop(ts) {
+      if (state !== 'playing') { raf = null; return; }
+      var dt = lastTs ? Math.min((ts - lastTs) / 16.7, 2) : 1;
+      lastTs = ts;
+      step(dt);
+      draw();
+      raf = requestAnimationFrame(loop);
+    }
+
+    function startLoop() {
+      if (raf) return;
+      lastTs = 0;
+      raf = requestAnimationFrame(loop);
+    }
+
+    // menu attract mode: cat idling on the kitchen floor
+    draw();
+  </script>
+</body>
+</html>
