@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>MEOW BEATS — Samson Arcade</title>
+  <meta name="description" content="MEOW BEATS: a purr-powered beat machine. Tap the grid to build a loop of kicks, meows, purrs and chirps — DJ Cat drops the beat, you drop the tuna." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #14131f; --panel: #1d1c2e; --ink: #f5f0e6; --ink-soft: #a9a4c0;
+      --red: #ff5d5d; --gold: #ffd23f; --line: #2e2c4a; --teal: #4fd1c5; --pink: #ff8fa3;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', sans-serif; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1.25rem 1rem 2rem;
+    }
+    h1, .bigbtn, .padbtn, .rowlabel, .stepnum { font-family: 'Bungee', cursive; }
+    .topbar { width: 100%; max-width: 560px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; }
+    .topbar a.logo { color: var(--ink); text-decoration: none; font-family: 'Bungee', cursive; font-size: 1rem; }
+    .topbar a.logo span { color: var(--red); }
+    .topbar a.home { color: var(--ink-soft); text-decoration: none; font-weight: 800; font-size: 0.9rem; }
+    .topbar a.home:hover { color: var(--gold); }
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); letter-spacing: 0.04em; }
+    header h1 .star { color: var(--gold); }
+    header p { color: var(--ink-soft); font-weight: 600; margin-top: 0.3rem; font-size: 0.92rem; }
+    header p b { color: var(--teal); }
+    header .hero { height: 96px; margin-bottom: 0.3rem; mix-blend-mode: screen; image-rendering: pixelated; }
+
+    #stage { width: 100%; max-width: 560px; background: var(--panel); border: 4px solid var(--line);
+      border-radius: 18px; padding: 1rem; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; position: relative; }
+
+    .transport { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.9rem; }
+    .bigbtn {
+      font-size: 1rem; letter-spacing: 0.06em;
+      background: var(--red); color: #180608; border: none; border-radius: 14px;
+      padding: 0.8rem 1.4rem; cursor: pointer; font-family: 'Bungee', cursive;
+      box-shadow: 0 4px 0 #a02c2c; transition: transform 0.08s; white-space: nowrap;
+    }
+    .bigbtn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a02c2c; }
+    .bigbtn.playing { background: var(--gold); box-shadow: 0 4px 0 #a8860a; }
+    .bigbtn.playing:active { box-shadow: 0 1px 0 #a8860a; }
+    .tempo { flex: 1; display: flex; align-items: center; gap: 0.6rem; }
+    .tempo label { font-weight: 800; font-size: 0.75rem; letter-spacing: 0.1em; color: var(--ink-soft); white-space: nowrap; }
+    .tempo input[type="range"] { flex: 1; accent-color: var(--gold); height: 28px; }
+    .tempo b { font-family: 'Bungee', cursive; font-size: 0.95rem; color: var(--gold); min-width: 4.2ch; text-align: right; }
+
+    .gridwrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .grid {
+      display: grid; grid-template-columns: 74px repeat(16, 1fr);
+      gap: 4px; min-width: 520px;
+    }
+    .rowlabel {
+      display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+      font-size: 0.72rem; letter-spacing: 0.06em; padding: 0.2rem 0.35rem;
+      border-radius: 8px; cursor: pointer; border: none; background: transparent; color: var(--ink);
+      text-align: left; line-height: 1.25;
+    }
+    .rowlabel small { font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 0.62rem; color: var(--ink-soft); letter-spacing: 0; }
+    .rowlabel:active { transform: translateY(1px); }
+    .cell {
+      aspect-ratio: 1; border: none; border-radius: 7px; cursor: pointer;
+      background: #0e0d18; border: 2px solid var(--line); padding: 0;
+      transition: transform 0.05s, background 0.05s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cell:active { transform: scale(0.88); }
+    .cell.beat { border-color: #3d3a5e; }
+    .cell.on.kick { background: var(--red); border-color: var(--red); }
+    .cell.on.meow { background: var(--gold); border-color: var(--gold); }
+    .cell.on.purr { background: var(--teal); border-color: var(--teal); }
+    .cell.on.chirp { background: var(--pink); border-color: var(--pink); }
+    .cell.now { outline: 2px solid #fff; outline-offset: 1px; }
+    .cell.now.on { filter: brightness(1.35); }
+
+    .stepnums { display: grid; grid-template-columns: 74px repeat(16, 1fr); gap: 4px; min-width: 520px; margin-top: 4px; }
+    .stepnum { font-size: 0.55rem; color: var(--ink-soft); text-align: center; }
+    .stepnum.down { color: var(--gold); }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 1rem; }
+    .padbtn {
+      flex: 1 1 auto; font-size: 0.78rem; letter-spacing: 0.05em;
+      background: var(--line); color: var(--ink); border: none; border-radius: 10px;
+      padding: 0.7rem 0.6rem; cursor: pointer; touch-action: manipulation;
+    }
+    .padbtn:active { background: var(--teal); color: #0e0d18; transform: translateY(2px); }
+    .padbtn.gold { background: var(--gold); color: #180608; }
+    .padbtn.gold:active { background: #ffe27a; }
+
+    .underboard { display: flex; justify-content: space-between; align-items: center; margin-top: 0.9rem; gap: 0.6rem; }
+    #toast { flex: 1; color: var(--ink-soft); font-weight: 700; font-size: 0.85rem; min-height: 1.2em; }
+    #toast b { color: var(--gold); }
+    #toast .t { color: var(--teal); }
+    #toast .r { color: var(--red); }
+
+    .hint { margin-top: 1rem; color: var(--ink-soft); font-weight: 600; font-size: 0.88rem; text-align: center; }
+    .hint b { color: var(--gold); }
+    footer { margin-top: 1.4rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 600; text-align: center; }
+    footer a { color: var(--gold); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="logo" href="../"><span>★</span> ARCADE</a>
+    <a class="home" href="../">← back to the arcade</a>
+  </div>
+
+  <header>
+    <img class="hero" src="../assets/images/beats/hero.webp" alt="A pixel orange cat DJ wearing red headphones at a turntable" />
+    <h1><span class="star">★</span> MEOW BEATS <span class="star">★</span></h1>
+    <p>A purr-powered beat machine. DJ Cat drops the beat — <b>you</b> drop the tuna.</p>
+  </header>
+
+  <div id="stage">
+    <div class="transport">
+      <button class="bigbtn" id="playBtn">▶ PLAY</button>
+      <div class="tempo">
+        <label for="bpm">TEMPO</label>
+        <input type="range" id="bpm" min="80" max="180" step="1" value="120" />
+        <b id="bpmVal">120 BPM</b>
+      </div>
+    </div>
+
+    <div class="gridwrap">
+      <div class="grid" id="grid"></div>
+      <div class="stepnums" id="stepnums"></div>
+    </div>
+
+    <div class="actions">
+      <button class="padbtn gold" id="diceBtn">🎲 CAT'S CHOICE</button>
+      <button class="padbtn" id="presetBtn">↻ NEXT GROOVE</button>
+      <button class="padbtn" id="clearBtn">✕ CLEAR</button>
+    </div>
+
+    <div class="underboard">
+      <div id="toast">tap the squares to build your loop. tap a row name to hear the sound.</div>
+    </div>
+  </div>
+
+  <p class="hint">tap squares to toggle · <b>space</b> plays / stops · your loop auto-saves</p>
+  <footer>the cats deny everything · <a href="../">samson arcade</a></footer>
+
+  <script>
+    'use strict';
+    var STEPS = 16;
+    var ROWS = [
+      { id: 'kick',  name: 'KICK',  sub: 'bass thump',  color: '#ff5d5d' },
+      { id: 'meow',  name: 'MEOW',  sub: 'synth meow',  color: '#ffd23f' },
+      { id: 'purr',  name: 'PURR',  sub: 'low rumble',  color: '#4fd1c5' },
+      { id: 'chirp', name: 'CHIRP', sub: 'high blip',   color: '#ff8fa3' }
+    ];
+    var PRESETS = [
+      { name: 'PURR GROOVE', grid: [
+        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,1],
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,1,0,0],
+        [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0],
+        [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0] ] },
+      { name: 'TUNA TUESDAY', grid: [
+        [1,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,1,0],
+        [0,0,1,0, 0,1,0,0, 0,0,1,0, 0,0,1,0],
+        [1,1,0,0, 1,0,0,1, 0,1,0,0, 1,0,0,1],
+        [0,0,0,1, 0,0,0,1, 0,0,0,1, 0,1,0,0] ] },
+      { name: 'ZOOMIES', grid: [
+        [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,1],
+        [0,1,0,0, 1,0,0,1, 0,0,1,0, 0,1,0,0],
+        [1,0,0,0, 0,1,0,0, 1,0,0,0, 0,1,0,0],
+        [0,0,1,0, 0,0,1,0, 0,0,1,0, 1,0,0,1] ] }
+    ];
+    var QUIPS = [
+      'the cat is feeling this one.',
+      'that groove has nine lives.',
+      'DJ Cat nods. the crowd (one mouse) goes wild.',
+      'somewhere, a vacuum just got scared.',
+      'the tuna can is tapping its lid.',
+      'this beat could wake a sleeping cat. it did not.'
+    ];
+    var SAVE_KEY = 'meowBeatsPattern';
+
+    var gridEl = document.getElementById('grid');
+    var stepnumsEl = document.getElementById('stepnums');
+    var playBtn = document.getElementById('playBtn');
+    var bpmSlider = document.getElementById('bpm');
+    var bpmVal = document.getElementById('bpmVal');
+    var toastEl = document.getElementById('toast');
+
+    // ---- state ----
+    var pattern = [];
+    var presetIdx = -1;
+    var bpm = 120;
+    var playing = false;
+    var step = 0;
+    var timer = null;
+    var nextTime = 0;
+
+    function blankPattern() {
+      return ROWS.map(function () { return new Array(STEPS).fill(0); });
+    }
+
+    function loadPattern() {
+      try {
+        var raw = localStorage.getItem(SAVE_KEY);
+        if (raw) {
+          var p = JSON.parse(raw);
+          if (p && p.length === ROWS.length && p[0].length === STEPS) return p;
+        }
+      } catch (e) {}
+      return PRESETS[0].grid.map(function (r) { return r.slice(); });
+    }
+    function savePattern() {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(pattern)); } catch (e) {}
+    }
+    pattern = loadPattern();
+
+    // ---- audio: all synth, no samples ----
+    var AC = null;
+    function audio() {
+      if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+      if (AC && AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function env(g, t, vol, dur) {
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    }
+    function playSound(rowId, when) {
+      var ac = audio(); if (!ac) return;
+      var t = ac.currentTime + (when || 0);
+      var o, g;
+      if (rowId === 'kick') {
+        o = ac.createOscillator(); g = ac.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(160, t);
+        o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
+        env(g, t, 0.5, 0.16);
+        o.connect(g); g.connect(ac.destination);
+        o.start(t); o.stop(t + 0.18);
+      } else if (rowId === 'meow') {
+        o = ac.createOscillator(); g = ac.createGain();
+        var f = ac.createBiquadFilter();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(620, t);
+        o.frequency.linearRampToValueAtTime(940, t + 0.12);
+        o.frequency.linearRampToValueAtTime(520, t + 0.32);
+        f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 1.2;
+        env(g, t, 0.22, 0.34);
+        o.connect(f); f.connect(g); g.connect(ac.destination);
+        o.start(t); o.stop(t + 0.36);
+      } else if (rowId === 'purr') {
+        o = ac.createOscillator(); g = ac.createGain();
+        var lfo = ac.createOscillator(), lg = ac.createGain();
+        o.type = 'triangle'; o.frequency.value = 58;
+        lfo.type = 'sine'; lfo.frequency.value = 28;
+        lg.gain.value = 0.12;
+        lfo.connect(lg); lg.connect(g.gain);
+        env(g, t, 0.3, 0.26);
+        o.connect(g); g.connect(ac.destination);
+        o.start(t); o.stop(t + 0.28);
+        lfo.start(t); lfo.stop(t + 0.28);
+      } else if (rowId === 'chirp') {
+        o = ac.createOscillator(); g = ac.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(1250, t);
+        o.frequency.exponentialRampToValueAtTime(1900, t + 0.07);
+        env(g, t, 0.12, 0.09);
+        o.connect(g); g.connect(ac.destination);
+        o.start(t); o.stop(t + 0.1);
+      }
+    }
+
+    // ---- grid build ----
+    var cells = [];
+    ROWS.forEach(function (row, r) {
+      var label = document.createElement('button');
+      label.className = 'rowlabel';
+      label.innerHTML = '<span style="color:' + row.color + '">● ' + row.name + '</span><small>' + row.sub + '</small>';
+      label.addEventListener('click', function () { playSound(row.id); setToast('<b>' + row.name + '</b> — ' + row.sub + '. tap the row to preview any sound.'); });
+      gridEl.appendChild(label);
+      cells[r] = [];
+      for (var s = 0; s < STEPS; s++) {
+        (function (rr, ss) {
+          var c = document.createElement('button');
+          c.className = 'cell ' + ROWS[rr].id + ((ss % 4 === 0) ? ' beat' : '');
+          c.setAttribute('aria-label', ROWS[rr].name + ' step ' + (ss + 1));
+          c.addEventListener('click', function () {
+            pattern[rr][ss] = pattern[rr][ss] ? 0 : 1;
+            c.classList.toggle('on', !!pattern[rr][ss]);
+            if (pattern[rr][ss]) playSound(ROWS[rr].id);
+            savePattern();
+          });
+          gridEl.appendChild(c);
+          cells[rr][ss] = c;
+        })(r, s);
+      }
+    });
+    for (var i = 0; i < STEPS; i++) {
+      var n = document.createElement('div');
+      n.className = 'stepnum' + ((i % 4 === 0) ? ' down' : '');
+      n.textContent = i + 1;
+      stepnumsEl.appendChild(n);
+    }
+    // step number spacer cell to align with row labels
+    var spacer = document.createElement('div');
+    stepnumsEl.insertBefore(spacer, stepnumsEl.firstChild);
+
+    function renderGrid() {
+      ROWS.forEach(function (row, r) {
+        for (var s = 0; s < STEPS; s++) {
+          cells[r][s].classList.toggle('on', !!pattern[r][s]);
+        }
+      });
+    }
+    function renderPlayhead() {
+      ROWS.forEach(function (row, r) {
+        for (var s = 0; s < STEPS; s++) {
+          cells[r][s].classList.toggle('now', playing && s === step);
+        }
+      });
+    }
+    renderGrid();
+
+    function setToast(html) { toastEl.innerHTML = html; }
+
+    // ---- transport ----
+    function stepDur() { return 60 / bpm / 4; }
+    function tick() {
+      var ac = audio(); if (!ac) { stop(); return; }
+      var now = ac.currentTime;
+      while (nextTime < now + 0.12) {
+        var s = step;
+        var delay = Math.max(nextTime - now, 0);
+        ROWS.forEach(function (row, r) {
+          if (pattern[r][s]) playSound(row.id, delay);
+        });
+        // schedule playhead highlight
+        (function (ss, d) {
+          setTimeout(function () { step = ss; renderPlayhead(); }, d * 1000);
+        })(s, delay);
+        nextTime += stepDur();
+        step = (step + 1) % STEPS;
+      }
+    }
+    function start() {
+      audio();
+      playing = true;
+      step = 0;
+      nextTime = AC.currentTime + 0.05;
+      renderPlayhead();
+      timer = setInterval(tick, 25);
+      playBtn.textContent = '■ STOP';
+      playBtn.classList.add('playing');
+      setToast('<b>now playing.</b> ' + QUIPS[Math.floor(Math.random() * QUIPS.length)]);
+    }
+    function stop() {
+      playing = false;
+      if (timer) { clearInterval(timer); timer = null; }
+      renderPlayhead();
+      playBtn.textContent = '▶ PLAY';
+      playBtn.classList.remove('playing');
+      setToast('paused. the cat keeps the beat in its head.');
+    }
+    playBtn.addEventListener('click', function () { playing ? stop() : start(); });
+
+    bpmSlider.addEventListener('input', function () {
+      bpm = parseInt(bpmSlider.value, 10);
+      bpmVal.textContent = bpm + ' BPM';
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === ' ') { e.preventDefault(); playing ? stop() : start(); }
+    });
+
+    // ---- actions ----
+    document.getElementById('diceBtn').addEventListener('click', function () {
+      pattern = blankPattern();
+      ROWS.forEach(function (row, r) {
+        var density = r === 0 ? 0.35 : (r === 1 ? 0.3 : (r === 2 ? 0.45 : 0.25));
+        for (var s = 0; s < STEPS; s++) {
+          pattern[r][s] = Math.random() < density ? 1 : 0;
+        }
+        // keep the kick honest on beat 1
+        if (r === 0) pattern[r][0] = 1;
+      });
+      renderGrid();
+      savePattern();
+      setToast('<b>cat\u2019s choice!</b> the cat rolled the dice. it likes this one.');
+    });
+
+    document.getElementById('presetBtn').addEventListener('click', function () {
+      presetIdx = (presetIdx + 1) % PRESETS.length;
+      var p = PRESETS[presetIdx];
+      pattern = p.grid.map(function (r) { return r.slice(); });
+      renderGrid();
+      savePattern();
+      setToast('<b>' + p.name + '</b> loaded. DJ Cat\u2019s house groove.');
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', function () {
+      pattern = blankPattern();
+      renderGrid();
+      savePattern();
+      setToast('blank canvas. the cat awaits your genius.');
+    });
+  </script>
+</body>
+</html>
